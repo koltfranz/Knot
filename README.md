@@ -11,7 +11,7 @@
 | 运行时依赖 | **无**（仅 Python 标准库） |
 | 目标平台 | Windows / macOS / Linux |
 | 适用地区 | 中国大陆（人民币本位、中文输入、中文会计科目） |
-| 许可证 | MIT |
+| 许可证 | GPL-3.0 |
 
 ## 特性
 
@@ -89,4 +89,4 @@ pip install -e .
 
 ## 许可证
 
-[MIT](./LICENSE)
+[GPL-3.0](./LICENSE)
