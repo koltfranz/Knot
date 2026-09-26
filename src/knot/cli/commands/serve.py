@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sys
+import threading
+import webbrowser
 from pathlib import Path
 
 from knot.cli.ansi import GREEN, YELLOW, style
@@ -27,7 +29,38 @@ def add_parser(sub) -> None:
         help="绑定非本机地址时必须设置",
     )
     p.add_argument("--静默", dest="quiet", action="store_true", help="不打印访问日志")
+    p.add_argument(
+        "--打开浏览器",
+        "--open",
+        dest="open_browser",
+        action="store_true",
+        default=None,
+        help="启动后自动打开浏览器",
+    )
+    p.add_argument(
+        "--不打开浏览器",
+        "--no-open",
+        dest="no_open_browser",
+        action="store_true",
+        help="即使处于交互终端也不打开浏览器",
+    )
     p.set_defaults(func=run)
+
+
+def should_open_browser(args) -> bool:
+    """默认行为：交互式终端下自动打开浏览器；显式开关优先。"""
+    if getattr(args, "no_open_browser", False):
+        return False
+    if getattr(args, "open_browser", None):
+        return True
+    return sys.stdin.isatty()
+
+
+def open_browser_later(url: str, delay: float = 0.6) -> threading.Timer:
+    timer = threading.Timer(delay, webbrowser.open, args=(url,))
+    timer.daemon = True
+    timer.start()
+    return timer
 
 
 def run(args) -> int:
@@ -45,6 +78,11 @@ def run(args) -> int:
     print(style(BANNER.format(url=url, ledger=ledger, token_hint=token_hint), GREEN))
     if args.host in ("0.0.0.0", "::"):
         print(style("警告：已绑定所有网卡，请确保处于可信内网。", YELLOW), file=sys.stderr)
+
+    if should_open_browser(args):
+        # 口令只随打开请求带给浏览器，不打印到终端
+        open_browser_later(url + (f"?口令={args.token}" if args.token else ""))
+        print(style("已尝试在默认浏览器中打开（--不打开浏览器 可关闭该行为）", GREEN))
 
     try:
         server.serve_forever()
