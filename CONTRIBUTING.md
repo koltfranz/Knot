@@ -21,7 +21,21 @@ python -m pytest                    # 单元测试（pytest 驱动）
 ruff check . && ruff format .       # lint + 格式化
 ```
 
+未执行 `pip install -e .` 时，可用 `PYTHONPATH=src python -m unittest discover tests` 运行测试。
+
 新增功能 MUST 先添加测试用例再实现。
+
+## 作为 Git pre-commit 钩子
+
+`检查` 的退出码为 `0`（正常）/ `1`（账本校验失败），可直接用于钩子：
+
+```sh
+cat > .git/hooks/pre-commit <<'EOF'
+#!/bin/sh
+knot --账本 main.knot 检查 --静默 || exit 1
+EOF
+chmod +x .git/hooks/pre-commit
+```
 
 ## 提交格式（Conventional Commits）
 
