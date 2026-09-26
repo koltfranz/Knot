@@ -89,6 +89,15 @@ def render_transaction(tx: Transaction, indent: str = "  ", newline: str = "\n")
     return lines
 
 
+def target_year_file(ledger: Path, year: int, files: list[Path]) -> Path:
+    """新增交易写入哪个文件：优先已被 include 的年份文件，否则写主账本。"""
+    name = f"{year}.knot"
+    for file in files:
+        if file.name == name:
+            return file
+    return ledger
+
+
 def find_insert_index(lines: list[str], when: date) -> int:
     for i, line in enumerate(lines):
         if line and not line[0].isspace() and DATE_LINE_RE.match(line):

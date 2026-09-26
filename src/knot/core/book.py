@@ -96,9 +96,9 @@ class Book:
     def root_totals(self) -> dict[str, dict[str, Decimal]]:
         return {root: self.balance_of(root) for root in ROOTS}
 
-    def net_worth(self) -> dict[str, Decimal]:
-        assets = self.balance_of("资产")
-        liabilities = self.balance_of("负债")
+    def net_worth(self, upto: date | None = None) -> dict[str, Decimal]:
+        assets = self.balance_of("资产", upto=upto)
+        liabilities = self.balance_of("负债", upto=upto)
         totals = dict(assets)
         for currency, value in liabilities.items():
             totals[currency] = totals.get(currency, Decimal(0)) + value
@@ -283,7 +283,7 @@ def balance_single_legs(book: Book, diags: list[Diagnostic]) -> None:
         blanks[0].units = Amount(-total, currency)
 
 
-def _cost_value(posting: Posting) -> Decimal | None:
+def cost_value(posting: Posting) -> Decimal | None:
     if posting.cost is None or posting.units is None:
         return None
     if posting.cost.kind == "total":
@@ -291,17 +291,26 @@ def _cost_value(posting: Posting) -> Decimal | None:
     return abs(posting.units.number) * posting.cost.number
 
 
+def signed_value(posting: Posting) -> Decimal | None:
+    """分录在记账币种下的带符号价值；带成本时按成本币种计价。"""
+    value = cost_value(posting)
+    if value is None:
+        if posting.units is None:
+            return None
+        return posting.units.number
+    return value if posting.units.number >= 0 else -value
+
+
 def _currency_entries(book: Book, posting: Posting) -> list[tuple[str, Decimal]]:
     """把一条分录折算为若干（币种, 金额）项；带成本的分录按成本币种计价。"""
     if posting.units is None:
         return []
-    value = _cost_value(posting)
+    value = cost_value(posting)
     if value is None:
         currency = posting.units.currency or book.default_currency(posting.account)
         return [(currency, posting.units.number)]
     cost_currency = posting.cost.currency or book.options.operating_currency
-    sign = Decimal(1) if posting.units.number >= 0 else Decimal(-1)
-    return [(cost_currency, sign * value)]
+    return [(cost_currency, signed_value(posting) or Decimal(0))]
 
 
 def check_balance(book: Book, diags: list[Diagnostic]) -> None:

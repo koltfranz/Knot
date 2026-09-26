@@ -5,6 +5,8 @@ from datetime import date
 from decimal import Decimal
 from enum import StrEnum
 
+from knot.core.keywords import canonical_option_key, canonical_option_value
+
 
 class Flag(StrEnum):
     OK = "*"
@@ -179,12 +181,14 @@ class Options:
     write_bom: str = "off"
     sort_accounts: str = "unicode"
     pinyin: str = "off"
+    keyword_language: str = "auto"
 
     @classmethod
     def from_pairs(cls, pairs: dict[str, str]) -> Options:
         opts = cls()
         known = {f.name for f in cls.__dataclass_fields__.values()}
         for key, value in pairs.items():
-            if key in known:
-                setattr(opts, key, value)
+            canonical_key = canonical_option_key(key)
+            if canonical_key in known:
+                setattr(opts, canonical_key, canonical_option_value(canonical_key, value))
         return opts

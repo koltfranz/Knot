@@ -7,6 +7,7 @@ from pathlib import Path
 
 from knot.core.aliases import AliasTable, load_alias_file
 from knot.core.diagnostic import Diagnostic
+from knot.core.keywords import detect_language
 from knot.core.model import Directive, Include, Option, Options
 from knot.core.normalize import read_text
 from knot.core.parser import Parser
@@ -23,6 +24,7 @@ class LoadResult:
     aliases: AliasTable = field(default_factory=AliasTable)
     rules: RuleTable = field(default_factory=RuleTable)
     sources: dict[str, list[str]] = field(default_factory=dict)
+    languages: dict[str, str] = field(default_factory=dict)
     files: list[Path] = field(default_factory=list)
     diagnostics: list[Diagnostic] = field(default_factory=list)
 
@@ -96,6 +98,7 @@ class Loader:
             directives, diags, text = self._parse_file(file)
             result.diagnostics.extend(diags)
             result.sources[str(file)] = text.splitlines()
+            result.languages[str(file)] = detect_language(text.splitlines())
             result.files.append(file)
 
             for directive in directives:

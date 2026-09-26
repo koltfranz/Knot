@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 
 from knot.core.diagnostic import Diagnostic
+from knot.core.keywords import DIRECTIVE_LOOKUP
 
 ACCOUNT_CHARS = (
     r"\u4e00-\u9fff"
@@ -20,18 +21,7 @@ CURRENCY_RE = re.compile(r"[A-Z][A-Z0-9]{1,7}")
 
 ROOTS = ("资产", "负债", "权益", "收入", "费用")
 
-KEYWORDS = (
-    "option",
-    "include",
-    "open",
-    "close",
-    "balance",
-    "price",
-    "commodity",
-    "recur",
-    "budget",
-    "event",
-)
+KEYWORDS = tuple(sorted(DIRECTIVE_LOOKUP))
 
 TOKEN_RE = re.compile(
     r"(?P<ws>[ \t]+)"

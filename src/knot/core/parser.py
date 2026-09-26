@@ -6,9 +6,13 @@ from datetime import date
 
 from knot.core.amount import parse_decimal
 from knot.core.diagnostic import Diagnostic
+from knot.core.keywords import (
+    all_directive_spellings,
+    canonical_directive,
+    canonical_period,
+)
 from knot.core.lexer import (
     DATE_LINE_RE,
-    KEYWORDS,
     Token,
     is_account,
     is_currency,
@@ -155,16 +159,21 @@ class Parser:
             return None, i + 1
         first = tokens[0]
         if first.kind == "word":
-            if first.text == "option":
+            canonical = canonical_directive(first.text)
+            if canonical == "option":
                 return self._parse_option(tokens, i)
-            if first.text == "include":
+            if canonical == "include":
                 return self._parse_include(tokens, i)
-            if first.text in KEYWORDS:
+            if canonical is not None:
                 raise ParseError(
                     f"指令缺少日期：{first.text}", first.line, first.col, caret=first.text
                 )
         if first.kind == "word" and is_date(first.text):
-            if len(tokens) >= 2 and tokens[1].kind == "word" and tokens[1].text in KEYWORDS:
+            if (
+                len(tokens) >= 2
+                and tokens[1].kind == "word"
+                and canonical_directive(tokens[1].text)
+            ):
                 return self._parse_dated(tokens, i)
             if (
                 len(tokens) >= 2
@@ -172,7 +181,9 @@ class Parser:
                 and not is_flag(tokens[1].text)
                 and not is_number(tokens[1].text)
             ):
-                close = difflib.get_close_matches(tokens[1].text, KEYWORDS, n=1, cutoff=0.8)
+                close = difflib.get_close_matches(
+                    tokens[1].text, all_directive_spellings(), n=1, cutoff=0.8
+                )
                 if close:
                     raise ParseError(
                         f"未知指令：{tokens[1].text}",
@@ -182,7 +193,7 @@ class Parser:
                         suggestion=f'是否意为 "{close[0]}"？',
                     )
             return self._parse_transaction(tokens, i)
-        close = difflib.get_close_matches(first.text, KEYWORDS, n=1)
+        close = difflib.get_close_matches(first.text, all_directive_spellings(), n=1)
         suggestion = f'是否意为 "{close[0]}"？' if close else None
         raise ParseError(
             f"无法识别的指令：{first.text}",
@@ -218,7 +229,7 @@ class Parser:
 
     def _parse_dated(self, tokens: list[Token], i: int) -> tuple[Directive, int]:
         d = _to_date(tokens[0].text, tokens[0])
-        keyword = tokens[1].text
+        keyword = canonical_directive(tokens[1].text) or tokens[1].text
         rest = tokens[2:]
         handler = {
             "open": self._parse_open,
@@ -299,22 +310,18 @@ class Parser:
             t = tokens[0] if tokens else Token("word", "recur", 0, 0)
             raise ParseError('recur 需要："周期" "说明" from 起 to 止', t.line, t.col, caret=t.text)
         period, description = tokens[0].text, tokens[1].text
-        if period.lower() not in PERIODS and period not in (
-            "每天",
-            "每周",
-            "每月",
-            "每季度",
-            "每年",
-        ):
+        canonical_period_name = canonical_period(period)
+        if canonical_period_name is None:
             raise ParseError(f"未知周期：{period}", tokens[0].line, tokens[0].col, caret=period)
         idx = 2
         date_from = date_to = None
         while idx < len(tokens):
             t = tokens[idx]
-            if t.kind == "word" and t.text == "from" and idx + 1 < len(tokens):
+            marker = canonical_directive(t.text) if t.kind == "word" else None
+            if marker == "from" and idx + 1 < len(tokens):
                 date_from = _to_date(tokens[idx + 1].text, tokens[idx + 1])
                 idx += 2
-            elif t.kind == "word" and t.text == "to" and idx + 1 < len(tokens):
+            elif marker == "to" and idx + 1 < len(tokens):
                 date_to = _to_date(tokens[idx + 1].text, tokens[idx + 1])
                 idx += 2
             else:
@@ -325,7 +332,15 @@ class Parser:
             )
         postings, next_i = self._parse_postings_block(i)
         return Recur(
-            d, period, description, date_from, date_to, postings, self.filename, i + 1, next_i
+            d,
+            canonical_period_name,
+            description,
+            date_from,
+            date_to,
+            postings,
+            self.filename,
+            i + 1,
+            next_i,
         ), next_i
 
     def _parse_budget(self, d: date, tokens: list[Token], i: int) -> tuple[Directive, int]:
@@ -333,6 +348,8 @@ class Parser:
             t = tokens[0] if tokens else Token("word", "budget", 0, 0)
             raise ParseError("budget 缺少周期", t.line, t.col, caret=t.text)
         period = tokens[0].text
+        if canonical_period(period) is None:
+            raise ParseError(f"未知周期：{period}", tokens[0].line, tokens[0].col, caret=period)
         account, idx = self._account_from(tokens, 1)
         amount, idx = self._amount_from(tokens, idx)
         self._expect_end(tokens, idx)

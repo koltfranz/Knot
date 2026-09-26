@@ -1,0 +1,19 @@
+option "operating_currency" "CNY"
+option "strict" "off"
+
+2026-01-01 open 资产:现金 CNY
+2026-01-01 open 权益:期初
+
+2026-01-01 * "期初"
+  资产:现金     1,000.00 CNY
+  权益:期初
+
+2026-01-01 recur "monthly" "房租" from 2026-01-01 to 2026-03-01
+  费用:居住:房租   300.00 CNY  @ 资产:现金
+
+2026-03-31 balance 资产:现金 100.00 CNY
+2026-01-01 budget monthly 费用:餐饮 2000.00 CNY
+2026-01-01 event "生日" "妈妈"
+2026-06-01 price FUND 4.1200 CNY
+2026-01-01 commodity FUND
+2026-12-31 close 权益:期初
