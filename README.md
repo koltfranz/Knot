@@ -74,6 +74,7 @@ pip install -e .
 | 文档 | 说明 |
 |---|---|
 | [结绳Knot开发文档.md](./结绳Knot开发文档.md) | 完整开发文档：语法规范、架构设计、里程碑 |
+| [docs/用户手册.md](./docs/用户手册.md) | 面向使用者的完整手册：记账、查询、校验、语法参考 |
 | [docs/版本规划.md](./docs/版本规划.md) | 版本号编排、各版本交付范围与发布门槛 |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | 贡献指南与提交规范 |
 | [CHANGELOG.md](./CHANGELOG.md) | 版本变更记录 |
