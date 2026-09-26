@@ -92,7 +92,7 @@ def _canonicalize_roots(text: str) -> str:
     return text
 
 
-def _is_complete_account(text: str) -> bool:
+def is_complete_account(text: str) -> bool:
     return bool(is_account(text)) and (":" in text or text in ROOT_ALIASES.values())
 
 
@@ -122,7 +122,7 @@ class AliasTable:
         canonical = _canonicalize_roots(text)
         if canonical != text:
             return self.resolve(canonical)
-        if _is_complete_account(text):
+        if is_complete_account(text):
             return Resolution(text)
 
         table = {**BUILTIN_ACCOUNTS, **self.user}

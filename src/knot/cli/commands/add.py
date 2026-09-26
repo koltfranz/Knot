@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 from knot.cli.ansi import GREEN, style
@@ -83,18 +84,27 @@ def run(args) -> int:
 
     root = account.split(":")[0]
     if root == "费用":
+        sign = Decimal(1)
         raw_counterparty = args.from_ or result.options.default_asset
     elif root == "收入":
+        sign = Decimal(-1)
         raw_counterparty = args.to_ or result.options.default_income
+    elif args.to_ and not args.from_:
+        sign = Decimal(-1)
+        raw_counterparty = args.to_
+    elif args.from_:
+        sign = Decimal(1)
+        raw_counterparty = args.from_
     else:
-        raw_counterparty = args.from_ or args.to_
+        raw_counterparty = None
+        sign = Decimal(1)
     if raw_counterparty is None:
         raise KnotError("请用 -f/--from 或 -t/--to 指定对手科目")
     counterparty = _resolve(result.aliases, raw_counterparty, "对手科目")
 
     posting = Posting(
         account=account,
-        units=Amount(amount, result.options.operating_currency),
+        units=Amount(sign * amount, result.options.operating_currency),
         counterparty=counterparty,
     )
     tx = Transaction(

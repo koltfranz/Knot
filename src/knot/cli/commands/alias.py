@@ -3,8 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from knot.cli.ansi import GREEN, YELLOW, style
-from knot.core.aliases import COMMAND_ALIASES, load_alias_file
-from knot.core.lexer import is_account
+from knot.core.aliases import COMMAND_ALIASES, is_complete_account, load_alias_file
 from knot.core.normalize import KnotError
 from knot.core.table import render
 
@@ -54,8 +53,8 @@ def run_add(args) -> int:
     target = args.目标.strip()
     if not key or (" " in key):
         raise KnotError(f"别名不合法：{args.别名}")
-    if target not in COMMAND_ALIASES and not is_account(target):
-        raise KnotError(f"目标应为完整科目名或命令关键字：{target}")
+    if target not in COMMAND_ALIASES and not is_complete_account(target):
+        raise KnotError(f"目标应为完整科目名（根:子科目）或命令关键字：{target}")
 
     path = _path(args)
     mapping = load_alias_file(path) if path.exists() else {}
