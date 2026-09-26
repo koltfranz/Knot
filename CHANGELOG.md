@@ -4,6 +4,26 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.0] - 2026-09-26
+
+对应里程碑 M2：Web 界面（本地服务）。
+
+### Added
+
+- `服务`（`serve`）命令：`ThreadingHTTPServer` + 中文路由，默认监听 `127.0.0.1:5000`
+- Web 数据层 `web/service.py`：按文件 mtime 缓存快照，写操作复用 `core.actions`，变更后自动失效
+- HTTP 接口：`/api/概览`、`/api/流水`、`/api/余额`、`/api/科目`、`/api/别名`、`/api/待分类`、`/api/报表/<类型>`、`/api/图表/<类型>`、`/api/变更`（SSE）、`POST /api/记一笔`、`POST /api/归类`、`POST /api/导入预览`、`POST /api/导入`
+- 静态前端（随包分发、无 CDN、无第三方库）：仪表盘、记一笔、流水、科目、报表、导入向导六页；ChartSpec 在前端渲染为 SVG，与 CLI/TUI 消费同一结构
+- 三大财务报表：`report.balance_sheet`、`income_statement`、`cash_flow_statement`（现金流量按经营 / 投资 / 筹资分类）
+- 待分类批量归类：`POST /api/归类` 整块改写交易并沉淀分类规则（走 `core.actions.reclassify`）
+- 写操作内核 `core/actions.py`：CLI 与 Web 共用记账与归类逻辑（含收入方向符号推导）
+- 安全约束：绑定非本机地址必须设置口令，否则拒绝启动；静态文件目录穿越防护
+
+### Changed
+
+- `writer.render_transaction` 支持渲染交易与分录元数据（归类等重写操作可无损保留 `; 键: 值`）
+- 用户手册新增第 10 章「浏览器界面（本地服务）」与 HTTP 接口表
+
 ## [0.2.0] - 2026-09-26
 
 对应里程碑 M1：报表、导入与语言完备。
