@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "knot"
-version = "0.4.0"
+version = "0.5.0"
 description = "结绳 Knot：纯文本复式记账（CLI / TUI / Web）"
 readme = "README.md"
 requires-python = ">=3.11"
