@@ -14,6 +14,7 @@ from knot.core.chart import (
     render_svg,
     spec_budget_gauge,
     spec_calendar_heatmap,
+    spec_cash_flow_waterfall,
     spec_category_treemap,
     spec_expense_pie,
     spec_monthly_flow,
@@ -38,7 +39,7 @@ KINDS = {
     "heatmap": KIND_HEATMAP,
 }
 
-TOPICS = ("支出", "收入", "净资产", "分类", "日历", "预算")
+TOPICS = ("支出", "收入", "净资产", "分类", "日历", "预算", "现金流")
 
 
 def add_parser(sub) -> None:
@@ -92,6 +93,8 @@ def _build(args, book, start, end) -> ChartSpec:
         return spec_calendar_heatmap(book, year)
     if topic in ("预算", "budget"):
         return spec_budget_gauge(book, args.month, top=args.top)
+    if topic in ("现金流", "瀑布", "cashflow"):
+        return spec_cash_flow_waterfall(book, start, end)
     if topic in ("分类", "category"):
         if kind == KIND_TREEMAP:
             return spec_category_treemap(book, start, end, top=args.top)

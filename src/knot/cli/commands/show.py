@@ -27,6 +27,7 @@ def add_parser(sub) -> None:
     p.add_argument("--币种", dest="currency", metavar="币种")
     p.add_argument("--条数", dest="limit", type=int, metavar="N")
     p.add_argument("--json", dest="as_json", action="store_true", help="输出结构化 JSON")
+    p.add_argument("--sql", dest="sql", metavar="语句", help="用 SQL 子集查询（见 语法大全）")
     p.set_defaults(func=run)
 
 
@@ -98,6 +99,30 @@ def run(args) -> int:
     result, book, diags = load_book(Path(args.ledger))
     if abort_on_errors(diags):
         return 1
+
+    if getattr(args, "sql", None):
+        from knot.core.sql import execute
+
+        outcome = execute(book, args.sql)
+        if args.as_json:
+            print(
+                json.dumps(
+                    {"字段": outcome["字段"], "行": outcome["行"], "条数": outcome["条数"]},
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 0
+        print(
+            render(
+                outcome["字段"],
+                outcome["行"],
+                aligns=["left"] + ["right"] * (len(outcome["字段"]) - 1),
+            )
+        )
+        print(style(f"共 {outcome['条数']} 行", DIM))
+        return 0
+
     transactions = select(book.transactions, _filter(args, result.aliases))
 
     if args.as_json:

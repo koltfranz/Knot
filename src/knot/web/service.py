@@ -16,6 +16,7 @@ from knot.core.book import Book
 from knot.core.chart import (
     spec_budget_gauge,
     spec_calendar_heatmap,
+    spec_cash_flow_waterfall,
     spec_category_treemap,
     spec_expense_pie,
     spec_monthly_flow,
@@ -235,6 +236,36 @@ class LedgerService:
             return {"类型": "概况", "数据": book.summary()}
         raise KnotError(f"未知报表：{kind}")
 
+    def holdings(self, params: dict) -> dict:
+        from knot.core.inventory import build_positions, net_worth_in
+
+        book = self.snapshot().book
+        method = "average" if params.get("方法") in ("average", "平均") else "fifo"
+        positions = build_positions(book, method=method)
+        operated = net_worth_in(book, params.get("币种") or None)
+        return {
+            "方法": method,
+            "持仓": [
+                {
+                    "科目": item.account,
+                    "商品": item.commodity,
+                    "数量": str(item.units),
+                    "成本": _money(item.cost_total),
+                    "单位成本": str(item.unit_cost),
+                    "最新价": str(item.market_price) if item.market_price is not None else None,
+                    "市值": _money(item.market_value) if item.market_value is not None else None,
+                    "未实现盈亏": _money(item.unrealized) if item.unrealized is not None else None,
+                    "已实现盈亏": _money(item.realized),
+                }
+                for item in positions
+            ],
+            "净资产": {
+                "币种": operated["币种"],
+                "折算后": _money(operated["折算后"]),
+                "缺报价": {key: _money(value) for key, value in operated["缺报价"].items()},
+            },
+        }
+
     def budgets(self, params: dict) -> dict:
         from knot.core.budget import rows as budget_rows
         from knot.core.budget import summary as budget_summary
@@ -282,6 +313,8 @@ class LedgerService:
             spec = spec_calendar_heatmap(book, year)
         elif kind in ("预算", "budget"):
             spec = spec_budget_gauge(book, params.get("月"))
+        elif kind in ("现金流", "瀑布", "waterfall"):
+            spec = spec_cash_flow_waterfall(book, start, end)
         else:
             raise KnotError(f"未知图表：{kind}")
         return spec.to_json()

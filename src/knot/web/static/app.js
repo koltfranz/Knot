@@ -44,6 +44,30 @@ function renderChart(spec) {
   const max = Math.max(...series.flatMap((s) => s.values.map(Math.abs)), 1);
   const scale = (value) => (Math.abs(value) / max) * (height - pad * 2);
 
+  if (kind === "waterfall") {
+    const values = series[0]?.values || [];
+    const totalIndexes = [0, values.length - 1];
+    let running = 0;
+    const points = values.map((value, index) => {
+      const base = totalIndexes.includes(index) ? 0 : running;
+      const end = totalIndexes.includes(index) ? value : running + value;
+      running = end;
+      return { base, end };
+    });
+    const top = Math.max(...values, ...points.map((p) => Math.max(p.base, p.end)), 1);
+    const bottom = Math.min(0, ...values, ...points.map((p) => Math.min(p.base, p.end)));
+    const span = top - bottom || 1;
+    const slot = (width - 70) / Math.max(1, values.length);
+    const bars = points.map((point, index) => {
+      const y1 = 200 - ((Math.max(point.base, point.end) - bottom) / span) * 150;
+      const y2 = 200 - ((Math.min(point.base, point.end) - bottom) / span) * 150;
+      const color = totalIndexes.includes(index) ? "#4c78a8" : (values[index] >= 0 ? "#54a24b" : "#e45756");
+      return `<rect x="${40 + index * slot + slot * 0.2}" y="${y1}" width="${slot * 0.6}" height="${Math.max(2, y2 - y1)}" fill="${color}"><title>${esc(labels[index])} ${amount(values[index])}</title></rect>
+        <text x="${40 + index * slot + slot * 0.5}" y="220" font-size="10" text-anchor="middle">${esc(labels[index])}</text>`;
+    }).join("");
+    return `<svg viewBox="0 0 ${width} 240">${bars}</svg>`;
+  }
+
   if (kind === "gauge") {
     const actual = series[0]?.values || [];
     const planned = series[1]?.values || [];
@@ -143,6 +167,7 @@ async function loadDashboard() {
     ["chart-monthly", "/api/图表/收支"],
     ["chart-expense", "/api/图表/分类"],
     ["chart-heatmap", "/api/图表/日历"],
+    ["chart-waterfall", "/api/图表/现金流"],
   ]) {
     try {
       el(id).innerHTML = renderChart(await api(path));

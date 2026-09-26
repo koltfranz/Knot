@@ -27,8 +27,9 @@ KIND_PIE = "pie"
 KIND_HEATMAP = "heatmap"
 KIND_TREEMAP = "treemap"
 KIND_GAUGE = "gauge"
+KIND_WATERFALL = "waterfall"
 
-KINDS = (KIND_BAR, KIND_LINE, KIND_PIE, KIND_HEATMAP, KIND_TREEMAP, KIND_GAUGE)
+KINDS = (KIND_BAR, KIND_LINE, KIND_PIE, KIND_HEATMAP, KIND_TREEMAP, KIND_GAUGE, KIND_WATERFALL)
 
 PALETTE = (
     "#4c78a8",
@@ -194,6 +195,72 @@ def _wrap(title: str) -> str:
     )
 
 
+def spec_cash_flow_waterfall(
+    book: Book, start: date | None = None, end: date | None = None
+) -> ChartSpec:
+    """现金流瀑布：期初 → 经营 → 投资 → 筹资 → 期末。"""
+    from knot.core.report import cash_flow_statement
+
+    flow = cash_flow_statement(book, start, end)
+    opening = book.balance_of("资产", upto=start) if start else {}
+    currency = book.options.operating_currency
+    start_value = opening.get(currency, Decimal(0))
+    labels = ["期初", "经营", "投资", "筹资", "期末"]
+    values = [
+        start_value,
+        flow["经营"],
+        flow["投资"],
+        flow["筹资"],
+        start_value + flow["净流量"],
+    ]
+    return ChartSpec(
+        kind=KIND_WATERFALL,
+        title="现金流瀑布",
+        labels=labels,
+        series=[ChartSeries("现金", values)],
+        currency=currency,
+    )
+
+
+def _render_waterfall(spec: ChartSpec, width: int, height: int) -> str:
+    labels = spec.labels
+    values = spec.series[0].values if spec.series else []
+    if not labels or not values:
+        return _text(width / 2, height / 2, "暂无数据")
+    cumulative: list[Decimal] = []
+    running = Decimal(0)
+    for index, value in enumerate(values):
+        running = value if index in (0, len(values) - 1) else running + value
+        cumulative.append(running)
+    top = max(max(values), max(cumulative))
+    bottom = min(min(values), min(cumulative), Decimal(0))
+    span = (top - bottom) or Decimal(1)
+    left, right, top_y, bottom_y = 60.0, width - 30.0, 60.0, height - 60.0
+    plot_h = bottom_y - top_y
+    slot = (right - left) / max(1, len(labels))
+    bar_w = slot * 0.5
+    zero_y = bottom_y - float((Decimal(0) - bottom) / span) * plot_h
+    parts = [f'<line x1="{left}" y1="{zero_y:.1f}" x2="{right}" y2="{zero_y:.1f}" stroke="#999"/>']
+    previous = Decimal(0)
+    for index, (label, value) in enumerate(zip(labels, values, strict=False)):
+        is_total = index in (0, len(values) - 1)
+        base = Decimal(0) if is_total else previous
+        end_value = value if is_total else previous + value
+        y1 = bottom_y - float((max(base, end_value) - bottom) / span) * plot_h
+        y2 = bottom_y - float((min(base, end_value) - bottom) / span) * plot_h
+        x = left + index * slot + (slot - bar_w) / 2
+        color = PALETTE[0] if is_total else (PALETTE[2] if value >= 0 else PALETTE[3])
+        parts.append(
+            f'<rect x="{x:.1f}" y="{y1:.1f}" width="{bar_w:.1f}" height="{max(2.0, y2 - y1):.1f}" '
+            f'fill="{color}"><title>{html.escape(label)} {fmt_amount(value)} '
+            f"{spec.currency}</title></rect>"
+        )
+        parts.append(_text(x + bar_w / 2, bottom_y + 18, truncate(label, 8), size=11))
+        parts.append(_text(x + bar_w / 2, y1 - 6, fmt_amount(value), size=10))
+        previous = end_value
+    return "".join(parts)
+
+
 def spec_budget_gauge(book: Book, month: str | None = None, top: int = 8) -> ChartSpec:
     """预算进度：预算 vs 实际（三端消费同一 ChartSpec）。"""
     from knot.core.budget import rows as budget_rows
@@ -262,6 +329,8 @@ def render_svg(spec: ChartSpec, width: int = WIDTH, height: int = HEIGHT) -> str
         body = _render_treemap(spec, width, height)
     elif spec.kind == KIND_GAUGE:
         body = _render_gauge(spec, width, height)
+    elif spec.kind == KIND_WATERFALL:
+        body = _render_waterfall(spec, width, height)
     else:
         raise ValueError(f"未知图表类型：{spec.kind}")
     title = _text(width / 2, 28, spec.title, size=18)
