@@ -6,14 +6,12 @@ from pathlib import Path
 
 from knot.cli.ansi import GREEN, style
 from knot.cli.commands import abort_on_errors
+from knot.core.actions import EntryRequest, write_entry
 from knot.core.aliases import AliasTable
-from knot.core.date_cn import parse_date
 from knot.core.lexer import is_account
 from knot.core.loader import load_book
-from knot.core.model import Amount, Flag, Posting, Transaction
 from knot.core.normalize import KnotError, normalize_text
-from knot.core.number_cn import parse_amount
-from knot.core.writer import insert_transaction, render_transaction, target_year_file
+from knot.core.writer import render_transaction
 
 
 def add_parser(sub) -> None:
@@ -57,26 +55,15 @@ def _prompt(label: str, default: str | None = None) -> str:
     return value or (default or "")
 
 
-def _target_file(ledger: Path, year: int, files: list[Path]) -> Path:
-    return target_year_file(ledger, year, files)
-
-
 def run(args) -> int:
     ledger = Path(args.ledger)
     result, _book, diags = load_book(ledger, missing_ok=True)
     if abort_on_errors(diags):
         return 1
 
-    amount_text = args.金额
-    account_text = args.科目
-    if not amount_text:
-        amount_text = _prompt("金额")
-    if not account_text:
-        account_text = _prompt("科目")
-
-    amount = parse_amount(amount_text)
+    amount_text = args.金额 or _prompt("金额")
+    account_text = args.科目 or _prompt("科目")
     account = _resolve(result.aliases, account_text, "科目")
-    when = parse_date(args.date or "今天")
 
     root = account.split(":")[0]
     if root == "费用":
@@ -88,37 +75,33 @@ def run(args) -> int:
     elif args.to_ and not args.from_:
         sign = Decimal(-1)
         raw_counterparty = args.to_
-    elif args.from_:
-        sign = Decimal(1)
-        raw_counterparty = args.from_
     else:
-        raw_counterparty = None
         sign = Decimal(1)
-    if raw_counterparty is None:
-        raise KnotError("请用 -f/--from 或 -t/--to 指定对手科目")
-    counterparty = _resolve(result.aliases, raw_counterparty, "对手科目")
+        raw_counterparty = args.from_ or args.to_
+    counterparty = (
+        _resolve(result.aliases, raw_counterparty, "对手科目") if raw_counterparty else None
+    )
 
-    posting = Posting(
+    request = EntryRequest(
+        amount=amount_text,
         account=account,
-        units=Amount(sign * amount, result.options.operating_currency),
-        counterparty=counterparty,
-    )
-    tx = Transaction(
-        date=when,
-        flag=Flag.OK,
+        from_account=counterparty,
+        when=args.date,
+        note=args.note or "",
         payee=args.payee,
-        narration=normalize_text(args.note or ""),
-        postings=[posting],
-        tags=frozenset(normalize_text(t) for t in (args.tags or [])),
+        tags=tuple(args.tags or []),
+        sign=sign,
+    )
+    entry = write_entry(
+        request,
+        ledger=ledger,
+        aliases=result.aliases,
+        options=result.options,
+        rules=result.rules,
+        files=result.files,
     )
 
-    target = _target_file(ledger, when.year, result.files)
-    insert_transaction(target, tx)
-
-    if args.payee and result.rules.path is not None:
-        result.rules.learn(args.payee, account)
-
-    block = "".join(render_transaction(tx)).rstrip("\n")
+    block = "".join(render_transaction(entry.transaction)).rstrip("\n")
     print(block)
-    print(style(f"已记入 {target}", GREEN))
+    print(style(f"已记入 {entry.target}", GREEN))
     return 0

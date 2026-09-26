@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>结绳 Knot · 本地账本</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <h1>结绳 Knot</h1>
+  <nav id="tabs">
+    <button data-page="dashboard" class="active">仪表盘</button>
+    <button data-page="entry">记一笔</button>
+    <button data-page="flow">流水</button>
+    <button data-page="accounts">科目</button>
+    <button data-page="reports">报表</button>
+    <button data-page="import">导入向导</button>
+  </nav>
+  <span id="status" class="status"></span>
+</header>
+
+<main>
+  <section id="dashboard" class="page active">
+    <div class="cards" id="dashboard-cards"></div>
+    <div class="grid">
+      <div class="panel"><h2>净资产趋势</h2><div id="chart-networth" class="chart"></div></div>
+      <div class="panel"><h2>月度收支</h2><div id="chart-monthly" class="chart"></div></div>
+      <div class="panel"><h2>支出分类占比</h2><div id="chart-expense" class="chart"></div></div>
+      <div class="panel"><h2>消费日历</h2><div id="chart-heatmap" class="chart"></div></div>
+    </div>
+    <div class="panel"><h2>最近流水</h2><div id="dashboard-recent"></div></div>
+  </section>
+
+  <section id="entry" class="page">
+    <form id="entry-form" class="panel">
+      <h2>记一笔</h2>
+      <label>金额 <input name="金额" required placeholder="38 或 2万3"></label>
+      <label>科目 <input name="科目" required placeholder="餐饮 / 费用:餐饮:外卖"></label>
+      <label>从 <input name="来自" placeholder="现金 / 资产:银行:招行"></label>
+      <label>到 <input name="去向" placeholder="招行 / 收入:工资"></label>
+      <label>日期 <input name="日期" placeholder="今天 / 9月20日 / 2026-09-20"></label>
+      <label>摘要 <input name="摘要"></label>
+      <label>收款方 <input name="收款方"></label>
+      <label>标签 <input name="标签" placeholder="用逗号分隔"></label>
+      <button type="submit">记入账本</button>
+      <pre id="entry-result"></pre>
+    </form>
+    <div class="panel">
+      <h2>待分类（批量归类）</h2>
+      <div id="uncategorized"></div>
+    </div>
+  </section>
+
+  <section id="flow" class="page">
+    <div class="panel">
+      <h2>流水</h2>
+      <div class="filters">
+        <input id="flow-月" placeholder="月份 2026-09">
+        <input id="flow-科目" placeholder="科目">
+        <input id="flow-标签" placeholder="标签">
+        <input id="flow-收款方" placeholder="收款方">
+        <input id="flow-关键词" placeholder="关键词">
+        <button id="flow-search">查询</button>
+      </div>
+      <div id="flow-list"></div>
+    </div>
+  </section>
+
+  <section id="accounts" class="page">
+    <div class="panel"><h2>科目余额</h2><div id="account-tree"></div></div>
+    <div class="panel"><h2>科目走势</h2><div id="account-detail"></div></div>
+  </section>
+
+  <section id="reports" class="page">
+    <div class="panel">
+      <h2>报表</h2>
+      <div class="filters">
+        <select id="report-kind">
+          <option value="资产负债表">资产负债表</option>
+          <option value="利润表">利润表</option>
+          <option value="现金流量表">现金流量表</option>
+          <option value="收支">月度收支</option>
+          <option value="净资产">净资产趋势</option>
+          <option value="分类">支出分类</option>
+        </select>
+        <input id="report-月" placeholder="月份 2026-09">
+        <input id="report-年" placeholder="年份 2026">
+        <button id="report-load">生成</button>
+      </div>
+      <div id="report-body"></div>
+    </div>
+  </section>
+
+  <section id="import" class="page">
+    <div class="panel">
+      <h2>导入向导</h2>
+      <p class="hint">填入账单文件在<b>本机</b>的路径（服务与文件同机）。先预览，确认后写入。</p>
+      <div class="filters">
+        <select id="import-source">
+          <option value="微信">微信</option>
+          <option value="支付宝">支付宝</option>
+          <option value="银行">银行</option>
+        </select>
+        <input id="import-path" placeholder="C:\账单\微信.csv">
+        <input id="import-account" placeholder="资金科目（可选）">
+        <button id="import-preview">预览</button>
+        <button id="import-write">写入</button>
+      </div>
+      <div id="import-body"></div>
+    </div>
+  </section>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>

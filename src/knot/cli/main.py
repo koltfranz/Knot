@@ -17,6 +17,7 @@ from knot.cli.commands import (
     menu,
     normalize,
     report,
+    serve,
     show,
 )
 from knot.core.console import setup_console
@@ -35,6 +36,7 @@ COMMANDS = (
     alias,
     normalize,
     init,
+    serve,
     menu,
 )
 
