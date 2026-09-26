@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  zipapp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: 生成单文件程序
+        run: python scripts/打包.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: knot-py
+          path: dist/knot.pyz
+
+  nuitka:
+    # Nuitka 不支持交叉编译：三平台各自构建（开发文档 15.4）
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: 安装
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . nuitka
+      - name: 构建可执行程序
+        run: python scripts/构建可执行.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: knot-${{ matrix.os }}
+          path: dist/可执行/*
