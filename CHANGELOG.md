@@ -4,7 +4,7 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [0.1.0] - 未发布（开发中）
+## [0.1.0] - 2026-09-26
 
 对应里程碑 M0：内核与 CLI 记账。
 
