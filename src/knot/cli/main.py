@@ -5,12 +5,38 @@ import sys
 
 from knot.cli import ansi, completion
 from knot.cli.ansi import RED, style
-from knot.cli.commands import add, alias, bal, check, fmt, show
+from knot.cli.commands import (
+    add,
+    alias,
+    bal,
+    chart,
+    check,
+    fmt,
+    import_,
+    init,
+    menu,
+    normalize,
+    report,
+    show,
+)
 from knot.core.console import setup_console
 from knot.core.normalize import KnotError
 from knot.version import __version__
 
-COMMANDS = (add, show, bal, check, fmt, alias)
+COMMANDS = (
+    add,
+    show,
+    bal,
+    report,
+    chart,
+    check,
+    fmt,
+    import_,
+    alias,
+    normalize,
+    init,
+    menu,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:

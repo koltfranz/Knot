@@ -13,7 +13,7 @@ from knot.core.loader import load_book
 from knot.core.model import Amount, Flag, Posting, Transaction
 from knot.core.normalize import KnotError, normalize_text
 from knot.core.number_cn import parse_amount
-from knot.core.writer import insert_transaction, render_transaction
+from knot.core.writer import insert_transaction, render_transaction, target_year_file
 
 
 def add_parser(sub) -> None:
@@ -58,11 +58,7 @@ def _prompt(label: str, default: str | None = None) -> str:
 
 
 def _target_file(ledger: Path, year: int, files: list[Path]) -> Path:
-    name = f"{year}.knot"
-    for file in files:
-        if file.name == name:
-            return file
-    return ledger
+    return target_year_file(ledger, year, files)
 
 
 def run(args) -> int:
