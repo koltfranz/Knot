@@ -19,6 +19,7 @@ from knot.cli.commands import (
     report,
     serve,
     show,
+    tui,
 )
 from knot.core.console import setup_console
 from knot.core.normalize import KnotError
@@ -37,6 +38,7 @@ COMMANDS = (
     normalize,
     init,
     serve,
+    tui,
     menu,
 )
 
