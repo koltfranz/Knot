@@ -184,3 +184,147 @@ def render_pairs(rows: list[tuple[str, Decimal]], left: str = "科目", right: s
 def render_trend(rows: list[dict], value_key: str, label: str = "金额") -> str:
     table = [[row["月份"], fmt_amount(row[value_key])] for row in rows]
     return render(["月份", label], table, aligns=["left", "right"])
+
+
+ASSET_ROOT = "资产"
+LIABILITY_ROOT = "负债"
+EQUITY_ROOT = "权益"
+
+
+def _root_rows(book: Book, root: str, upto: date | None = None) -> list[tuple[str, Decimal]]:
+    rows: dict[str, Decimal] = defaultdict(Decimal)
+    for tx in book.transactions:
+        if upto is not None and tx.date > upto:
+            continue
+        for posting in tx.postings:
+            if posting.units is None or posting.account.split(":")[0] != root:
+                continue
+            rows[posting.account] += _amount(book, posting)
+    return sorted((name, value) for name, value in rows.items() if not is_zero(value))
+
+
+def balance_sheet(book: Book, as_of: date | None = None) -> dict:
+    """资产负债表（简式）：资产 = 负债 + 权益 + 当期损益。"""
+    assets = _root_rows(book, ASSET_ROOT, as_of)
+    liabilities = _root_rows(book, LIABILITY_ROOT, as_of)
+    equity = _root_rows(book, EQUITY_ROOT, as_of)
+    income = _root_rows(book, INCOME_ROOT, as_of)
+    expense = _root_rows(book, EXPENSE_ROOT, as_of)
+
+    total_assets = sum((value for _name, value in assets), Decimal(0))
+    total_liabilities = sum((value for _name, value in liabilities), Decimal(0))
+    total_equity = sum((value for _name, value in equity), Decimal(0))
+    profit = -sum((value for _name, value in income), Decimal(0)) - sum(
+        (value for _name, value in expense), Decimal(0)
+    )
+    claims = -total_liabilities - total_equity + profit
+    return {
+        "日期": (as_of or date.today()).isoformat(),
+        "资产": assets,
+        "负债": liabilities,
+        "权益": equity,
+        "当期损益": profit,
+        "资产合计": total_assets,
+        "负债合计": -total_liabilities,
+        "权益合计": -total_equity,
+        "负债权益合计": claims,
+        "平衡": is_zero(total_assets - claims),
+    }
+
+
+def income_statement(book: Book, start: date | None = None, end: date | None = None) -> dict:
+    """利润表（简式）：收入 - 费用 = 净利润。"""
+    income: dict[str, Decimal] = defaultdict(Decimal)
+    expense: dict[str, Decimal] = defaultdict(Decimal)
+    for tx in book.transactions:
+        if not _in_range(tx.date, start, end):
+            continue
+        for posting in tx.postings:
+            if posting.units is None:
+                continue
+            root = posting.account.split(":")[0]
+            if root == INCOME_ROOT:
+                income[posting.account] += -_amount(book, posting)
+            elif root == EXPENSE_ROOT:
+                expense[posting.account] += _amount(book, posting)
+
+    income_rows = sorted((name, value) for name, value in income.items() if not is_zero(value))
+    expense_rows = sorted((name, value) for name, value in expense.items() if not is_zero(value))
+    total_income = sum((value for _name, value in income_rows), Decimal(0))
+    total_expense = sum((value for _name, value in expense_rows), Decimal(0))
+    return {
+        "区间": [
+            (start or date.min).isoformat(),
+            (end or date.max).isoformat(),
+        ],
+        "收入": income_rows,
+        "费用": expense_rows,
+        "收入合计": total_income,
+        "费用合计": total_expense,
+        "净利润": total_income - total_expense,
+    }
+
+
+OPERATING_KEYWORDS = ("收入", "费用")
+INVESTING_KEYWORDS = ("投资", "证券", "基金", "股票")
+FINANCING_KEYWORDS = ("贷款", "信用卡", "借")
+
+
+def _flow_bucket(account: str) -> str:
+    root = account.split(":")[0]
+    if root == EQUITY_ROOT:
+        return "筹资"
+    for keyword in FINANCING_KEYWORDS:
+        if keyword in account:
+            return "筹资"
+    for keyword in INVESTING_KEYWORDS:
+        if keyword in account:
+            return "投资"
+    return "经营"
+
+
+def cash_flow_statement(book: Book, start: date | None = None, end: date | None = None) -> dict:
+    """现金流量表（简式）：按对手科目把现金类科目的流动分为经营 / 投资 / 筹资。"""
+    buckets: dict[str, Decimal] = defaultdict(Decimal)
+    inflow = outflow = Decimal(0)
+    for tx in book.transactions:
+        if not _in_range(tx.date, start, end):
+            continue
+        for posting in tx.postings:
+            if posting.units is None:
+                continue
+            if posting.account.split(":")[0] != ASSET_ROOT:
+                continue
+            value = _amount(book, posting)
+            if is_zero(value):
+                continue
+            bucket = "经营"
+            for other in tx.postings:
+                if other is posting or other.account.split(":")[0] in (ASSET_ROOT,):
+                    continue
+                bucket = _flow_bucket(other.account)
+                break
+            buckets[bucket] += value
+            if value > 0:
+                inflow += value
+            else:
+                outflow += value
+
+    return {
+        "经营": buckets.get("经营", Decimal(0)),
+        "投资": buckets.get("投资", Decimal(0)),
+        "筹资": buckets.get("筹资", Decimal(0)),
+        "流入合计": inflow,
+        "流出合计": outflow,
+        "净流量": inflow + outflow,
+    }
+
+
+def render_statement(
+    title: str, rows: list[tuple[str, Decimal]], total_label: str, total: Decimal
+) -> str:
+    lines = [title]
+    if rows:
+        lines.append(render_pairs(rows))
+    lines.append(f"{total_label}：{fmt_amount(total)}")
+    return "\n".join(lines)

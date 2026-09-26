@@ -75,6 +75,8 @@ def render_transaction(tx: Transaction, indent: str = "  ", newline: str = "\n")
     amount_width = max((len(a) for a in amounts), default=0)
 
     lines = [head + newline]
+    for key, value in tx.meta.items():
+        lines.append(f"{indent}; {key}: {value}" + newline)
     for posting in postings:
         line = indent + pad(posting.account, account_width)
         if posting.units is not None:
@@ -86,6 +88,8 @@ def render_transaction(tx: Transaction, indent: str = "  ", newline: str = "\n")
         if posting.counterparty is not None:
             line += f"  @ {posting.counterparty}"
         lines.append(line.rstrip() + newline)
+        for key, value in posting.meta.items():
+            lines.append(f"{indent}; {key}: {value}" + newline)
     return lines
 
 
