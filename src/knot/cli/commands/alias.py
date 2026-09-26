@@ -15,7 +15,11 @@ def add_parser(sub) -> None:
     p = sub.add_parser("alias", aliases=["别名"], help="别名管理")
     sp = p.add_subparsers(dest="alias_cmd", required=True)
 
-    sp.add_parser("列表", aliases=["list"], help="列出用户别名").set_defaults(func=run_list)
+    listing = sp.add_parser("列表", aliases=["list"], help="列出别名")
+    listing.add_argument(
+        "--全部", "--all", dest="all_aliases", action="store_true", help="同时列出内置别名"
+    )
+    listing.set_defaults(func=run_list)
     add = sp.add_parser("添加", aliases=["add"], help="添加别名")
     add.add_argument("别名", metavar="别名")
     add.add_argument("目标", metavar="目标", help="完整科目名或命令关键字")
@@ -23,6 +27,9 @@ def add_parser(sub) -> None:
     remove = sp.add_parser("删除", aliases=["remove", "del"], help="删除别名")
     remove.add_argument("别名", metavar="别名")
     remove.set_defaults(func=run_remove)
+    test = sp.add_parser("测试", aliases=["test"], help="测试一个词会解析成什么（含拼音）")
+    test.add_argument("词", metavar="词")
+    test.set_defaults(func=run_test)
 
     p.set_defaults(func=run_list)
 
@@ -40,11 +47,33 @@ def _rewrite(path: Path, mapping: dict[str, str]) -> None:
 def run_list(args) -> int:
     path = _path(args)
     mapping = load_alias_file(path) if path.exists() else {}
+    if getattr(args, "all_aliases", False):
+        from knot.core.aliases import AliasTable
+
+        mapping = AliasTable(mapping).all()
     if not mapping:
-        print(style(f"暂无用户别名（文件：{path}）", YELLOW))
+        print(style(f"暂无用户别名（文件：{path}；加 --全部 可看内置别名）", YELLOW))
         return 0
     rows = [[key, value] for key, value in sorted(mapping.items())]
     print(render(["别名", "目标"], rows))
+    return 0
+
+
+def run_test(args) -> int:
+    from knot.core.loader import load_book
+
+    result, book, _diags = load_book(Path(args.ledger), missing_ok=True)
+    word = args.词
+    resolution = result.aliases.resolve(word, book.used_accounts())
+    if resolution.target:
+        print(style(f"{word} → {resolution.target}", GREEN))
+        return 0
+    if resolution.candidates:
+        print(style(f"{word} 有多个候选：", YELLOW))
+        for candidate in resolution.candidates:
+            print(f"  {candidate}")
+        return 0
+    print(style(f"{word} 没有匹配到别名或科目（拼音检索：xianjin、zhaohang、fycy 这类）", YELLOW))
     return 0
 
 

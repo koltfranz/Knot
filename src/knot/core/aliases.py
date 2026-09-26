@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from knot.core import pinyin
 from knot.core.i18n import ROOT_ALIASES
 from knot.core.lexer import is_account
 
@@ -109,7 +111,7 @@ class AliasTable:
             **{k: v for k, v in self.user.items() if v not in COMMAND_ALIASES},
         }
 
-    def resolve(self, text: str) -> Resolution:
+    def resolve(self, text: str, accounts: Iterable[str] | None = None) -> Resolution:
         text = text.strip()
         if not text:
             return Resolution()
@@ -121,7 +123,7 @@ class AliasTable:
 
         canonical = _canonicalize_roots(text)
         if canonical != text:
-            return self.resolve(canonical)
+            return self.resolve(canonical, accounts)
         if is_complete_account(text):
             return Resolution(text)
 
@@ -129,4 +131,11 @@ class AliasTable:
         matches = sorted({value for key, value in table.items() if text in key or key in text})
         if len(matches) == 1:
             return Resolution(matches[0])
-        return Resolution(None, matches)
+        if matches:
+            return Resolution(None, matches)
+
+        pool = set(table.values()) | set(accounts or ())
+        hits = pinyin.match(text, sorted(pool))
+        if len(hits) == 1:
+            return Resolution(hits[0])
+        return Resolution(None, hits)

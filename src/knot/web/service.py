@@ -14,6 +14,7 @@ from knot.core.actions import EntryRequest, reclassify, resolve_account, write_e
 from knot.core.amount import fmt_amount, is_zero
 from knot.core.book import Book
 from knot.core.chart import (
+    spec_budget_gauge,
     spec_calendar_heatmap,
     spec_category_treemap,
     spec_expense_pie,
@@ -234,6 +235,34 @@ class LedgerService:
             return {"类型": "概况", "数据": book.summary()}
         raise KnotError(f"未知报表：{kind}")
 
+    def budgets(self, params: dict) -> dict:
+        from knot.core.budget import rows as budget_rows
+        from knot.core.budget import summary as budget_summary
+
+        book = self.snapshot().book
+        month = params.get("月")
+        items = [
+            {
+                **item,
+                "预算": _money(item["预算"]),
+                "实际": _money(item["实际"]),
+                "剩余": _money(item["剩余"]),
+                "进度": f"{item['进度'] * 100:.1f}%",
+            }
+            for item in budget_rows(book, month)
+        ]
+        total = budget_summary(book, month)
+        return {
+            "进度": items,
+            "合计": {
+                "月份": total["月份"],
+                "预算合计": _money(total["预算合计"]),
+                "实际合计": _money(total["实际合计"]),
+                "剩余合计": _money(total["剩余合计"]),
+                "超支科目": total["超支科目"],
+            },
+        }
+
     def chart(self, kind: str, params: dict) -> dict:
         book = self.snapshot().book
         start, end = self._range(params)
@@ -251,6 +280,8 @@ class LedgerService:
                 years = sorted({tx.date.year for tx in book.transactions})
                 year = years[-1] if years else date.today().year
             spec = spec_calendar_heatmap(book, year)
+        elif kind in ("预算", "budget"):
+            spec = spec_budget_gauge(book, params.get("月"))
         else:
             raise KnotError(f"未知图表：{kind}")
         return spec.to_json()

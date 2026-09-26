@@ -26,8 +26,9 @@ KIND_LINE = "line"
 KIND_PIE = "pie"
 KIND_HEATMAP = "heatmap"
 KIND_TREEMAP = "treemap"
+KIND_GAUGE = "gauge"
 
-KINDS = (KIND_BAR, KIND_LINE, KIND_PIE, KIND_HEATMAP, KIND_TREEMAP)
+KINDS = (KIND_BAR, KIND_LINE, KIND_PIE, KIND_HEATMAP, KIND_TREEMAP, KIND_GAUGE)
 
 PALETTE = (
     "#4c78a8",
@@ -193,6 +194,61 @@ def _wrap(title: str) -> str:
     )
 
 
+def spec_budget_gauge(book: Book, month: str | None = None, top: int = 8) -> ChartSpec:
+    """预算进度：预算 vs 实际（三端消费同一 ChartSpec）。"""
+    from knot.core.budget import rows as budget_rows
+
+    items = budget_rows(book, month)[:top]
+    return ChartSpec(
+        kind=KIND_GAUGE,
+        title="预算进度",
+        labels=[item["科目"] for item in items],
+        series=[
+            ChartSeries("实际", [item["实际"] for item in items]),
+            ChartSeries("预算", [item["预算"] for item in items]),
+        ],
+        currency=book.options.operating_currency,
+    )
+
+
+def _render_gauge(spec: ChartSpec, width: int, height: int) -> str:
+    labels = spec.labels
+    if not labels or len(spec.series) < 2:
+        return _text(width / 2, height / 2, "暂无预算")
+    actual, planned = spec.series[0].values, spec.series[1].values
+    left, right = 150.0, width - 80.0
+    row_height = min(28.0, (height - 90) / max(1, len(labels)))
+    parts: list[str] = []
+    for index, label in enumerate(labels):
+        top = planned[index] if index < len(planned) else Decimal(0)
+        used = actual[index] if index < len(actual) else Decimal(0)
+        ratio = float(used / top) if top else 0.0
+        y = 60 + index * row_height
+        color = PALETTE[2] if ratio <= 1 else PALETTE[3]
+        parts.append(_text(left - 10, y + 12, truncate(label, 16), size=12, anchor="end"))
+        parts.append(
+            f'<rect x="{left}" y="{y}" width="{right - left:.0f}" height="14" rx="7" '
+            f'fill="#eef1f3"/>'
+        )
+        filled = max(2.0, min(1.0, ratio) * (right - left))
+        parts.append(
+            f'<rect x="{left}" y="{y}" width="{filled:.0f}" height="14" rx="7" fill="{color}">'
+            f"<title>{html.escape(label)} 已用 {fmt_amount(used)} / 预算 {fmt_amount(top)}"
+            f"（{ratio * 100:.0f}%）</title></rect>"
+        )
+        parts.append(
+            _text(
+                right + 8,
+                y + 12,
+                f"{ratio * 100:.0f}%  {fmt_amount(used)}/{fmt_amount(top)}",
+                size=11,
+                anchor="start",
+                color="#555555",
+            )
+        )
+    return "".join(parts)
+
+
 def render_svg(spec: ChartSpec, width: int = WIDTH, height: int = HEIGHT) -> str:
     if spec.kind == KIND_BAR:
         body = _render_bar(spec, width, height)
@@ -204,6 +260,8 @@ def render_svg(spec: ChartSpec, width: int = WIDTH, height: int = HEIGHT) -> str
         body = _render_heatmap(spec, width, height)
     elif spec.kind == KIND_TREEMAP:
         body = _render_treemap(spec, width, height)
+    elif spec.kind == KIND_GAUGE:
+        body = _render_gauge(spec, width, height)
     else:
         raise ValueError(f"未知图表类型：{spec.kind}")
     title = _text(width / 2, 28, spec.title, size=18)

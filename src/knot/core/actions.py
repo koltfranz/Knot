@@ -40,9 +40,9 @@ class EntryResult:
     warnings: list[str] = field(default_factory=list)
 
 
-def resolve_account(aliases: AliasTable, text: str, what: str = "科目") -> str:
+def resolve_account(aliases: AliasTable, text: str, what: str = "科目", accounts=None) -> str:
     cleaned = normalize_text(text).strip()
-    resolution = aliases.resolve(cleaned)
+    resolution = aliases.resolve(cleaned, accounts)
     if resolution.target:
         return resolution.target
     if resolution.candidates:

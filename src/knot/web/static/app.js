@@ -44,6 +44,23 @@ function renderChart(spec) {
   const max = Math.max(...series.flatMap((s) => s.values.map(Math.abs)), 1);
   const scale = (value) => (Math.abs(value) / max) * (height - pad * 2);
 
+  if (kind === "gauge") {
+    const actual = series[0]?.values || [];
+    const planned = series[1]?.values || [];
+    const rows = labels.map((label, index) => {
+      const top = planned[index] || 0;
+      const used = actual[index] || 0;
+      const ratio = top ? used / top : 0;
+      const width = Math.max(2, Math.min(1, ratio) * 240);
+      const color = ratio <= 1 ? "#54a24b" : "#e45756";
+      return `<text x="110" y="${40 + index * 26}" font-size="12" text-anchor="end">${esc(label.slice(0, 14))}</text>
+        <rect x="120" y="${30 + index * 26}" width="240" height="14" rx="7" fill="#eef1f3"></rect>
+        <rect x="120" y="${30 + index * 26}" width="${width}" height="14" rx="7" fill="${color}"><title>${esc(label)} 已用 ${amount(used)} / 预算 ${amount(top)}</title></rect>
+        <text x="370" y="${42 + index * 26}" font-size="11" fill="#555">${(ratio * 100).toFixed(0)}%</text>`;
+    }).join("");
+    return `<svg viewBox="0 0 ${width} ${Math.max(90, 40 + labels.length * 26)}">${rows}</svg>`;
+  }
+
   if (kind === "pie") {
     const values = series[0].values;
     const total = values.reduce((a, b) => a + Math.abs(b), 0) || 1;
@@ -298,8 +315,26 @@ el("uncategorized").addEventListener("click", async (event) => {
   }
 });
 
+async function loadBudget() {
+  const query = new URLSearchParams();
+  if (el("report-月").value) query.set("月", el("report-月").value);
+  const data = await api(`/api/预算?${query}`);
+  if (!data["进度"].length) {
+    el("budget-body").innerHTML = `<p class="hint">账本里还没有预算（可在年份文件写 <code>2026-01-01 budget monthly 费用:餐饮 2000.00 CNY</code>）。</p>`;
+    return;
+  }
+  const chart = await api(`/api/图表/预算?${query}`);
+  el("budget-body").innerHTML =
+    renderChart(chart) +
+    table(["科目", "月份", "预算", "实际", "剩余", "进度"],
+      data["进度"].map((row) => [esc(row["科目"]), esc(row["月份"]), amount(row["预算"]),
+        amount(row["实际"]), amount(row["剩余"]), esc(row["进度"])]), [2, 3, 4]) +
+    `<p class="hint">合计：预算 ${esc(data["合计"]["预算合计"])} · 实际 ${esc(data["合计"]["实际合计"])} · 剩余 ${esc(data["合计"]["剩余合计"])}</p>`;
+}
+
 el("flow-search").addEventListener("click", loadFlow);
 el("report-load").addEventListener("click", loadReport);
+el("budget-load").addEventListener("click", loadBudget);
 el("import-preview").addEventListener("click", () => runImport(false));
 el("import-write").addEventListener("click", () => runImport(true));
 el("account-tree").addEventListener("click", (event) => {

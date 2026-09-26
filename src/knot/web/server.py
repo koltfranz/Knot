@@ -94,6 +94,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(self.service.aliases(query))
         elif path == "/api/待分类":
             self._json(self.service.uncategorized(query))
+        elif path == "/api/预算":
+            self._json(self.service.budgets(query))
         elif path.startswith("/api/报表/"):
             self._json(self.service.report(path.split("/", 3)[3], query))
         elif path.startswith("/api/图表/"):
