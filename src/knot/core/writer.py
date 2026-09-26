@@ -24,8 +24,13 @@ class Edit:
 def apply_edits(path: Path, edits: list[Edit]) -> None:
     text = read_text_raw(path) if path.exists() else ""
     lines = text.splitlines(keepends=True)
+    applied_start: int | None = None
     for e in sorted(edits, key=lambda x: x.line_start, reverse=True):
+        # 重叠编辑会互相吞掉对方的结果：按行号降序应用时，跳过与已应用区间相交的编辑
+        if applied_start is not None and e.line_end >= applied_start:
+            continue
         lines[e.line_start - 1 : e.line_end] = e.new_lines
+        applied_start = e.line_start
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text("".join(lines), encoding="utf-8", newline="")
     tmp.replace(path)

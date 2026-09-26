@@ -55,6 +55,14 @@ def occurrences(period: str, start: date, end: date | None) -> list[date]:
     return dates
 
 
+RECUR_META_KEY = "定期"
+
+
+def is_generated(transaction) -> bool:
+    """由定期模板展开出的交易：源行区间指向模板，改回文件会破坏模板。"""
+    return RECUR_META_KEY in getattr(transaction, "meta", {})
+
+
 def expand_recur(directives: list[Directive]) -> list[Directive]:
     expanded: list[Directive] = []
     for directive in directives:
@@ -70,7 +78,7 @@ def expand_recur(directives: list[Directive]) -> list[Directive]:
                     payee=None,
                     narration=directive.description,
                     postings=postings,
-                    meta={"定期": directive.period},
+                    meta={RECUR_META_KEY: directive.period},
                     src_file=directive.src_file,
                     src_line_start=directive.src_line_start,
                     src_line_end=directive.src_line_end,

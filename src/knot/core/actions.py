@@ -134,15 +134,19 @@ def reclassify(
 ) -> tuple[int, list[Path]]:
     """把某个收款方的待分类交易整块改写为目标科目（逐块编辑，原子写回）。"""
     from knot.core.loader import load_book
+    from knot.core.recur import is_generated
     from knot.core.writer import Edit, apply_edits, detect_style, render_transaction
 
     target_account = resolve_account(aliases, account)
     _result, book, _diags = load_book(ledger)
 
     edits_by_file: dict[Path, list[Edit]] = {}
+    seen_blocks: set[tuple[str, int, int]] = set()
     changed = 0
     for transaction in book.transactions:
         if (transaction.payee or transaction.narration) != payee:
+            continue
+        if is_generated(transaction):
             continue
         touched = False
         for posting in transaction.postings:
@@ -155,6 +159,10 @@ def reclassify(
             or transaction.src_line_end < transaction.src_line_start
         ):
             continue
+        block_key = (transaction.src_file, transaction.src_line_start, transaction.src_line_end)
+        if block_key in seen_blocks:
+            continue
+        seen_blocks.add(block_key)
         path = Path(transaction.src_file)
         indent, newline = detect_style(path)
         block = render_transaction(transaction, indent, newline)

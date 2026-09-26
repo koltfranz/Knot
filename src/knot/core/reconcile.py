@@ -22,6 +22,7 @@ class ReconcileReport:
     pending: list[Transaction] = field(default_factory=list)
     pending_total: Decimal = Decimal(0)
     cleared: int = 0
+    generated: int = 0
 
     @property
     def balanced(self) -> bool:
@@ -45,6 +46,8 @@ def reconcile(
     as_of: date | None = None,
     limit: int = 20,
 ) -> ReconcileReport:
+    from knot.core.recur import is_generated
+
     when = as_of or (max((tx.date for tx in book.transactions), default=date.today()))
     currency = book.options.operating_currency
     balances = book.balance_of(account, upto=when)
@@ -69,6 +72,10 @@ def reconcile(
             continue
         if tx.flag is Flag.CLEARED:
             report.cleared += 1
+            continue
+        if is_generated(tx):
+            # 定期模板展开出的交易没有独立源行，不参与对账标记
+            report.generated += 1
             continue
         report.pending.append(tx)
 
@@ -123,13 +130,25 @@ def balance_assertion(book: Book, account: str, amount: Decimal, as_of: date) ->
 
 
 def mark_cleared(transactions: list[Transaction]) -> int:
-    """把交易标记为已对账（`P`），整块重写、原子写回。"""
+    """把交易标记为已对账（`P`），整块重写、原子写回。
+
+    定期模板展开出的交易没有独立源行（其区间指向模板），MUST NOT 改写；
+    同一源行区间只处理一次，避免重叠编辑。
+    """
+    from knot.core.recur import is_generated
     from knot.core.writer import Edit, apply_edits, detect_style, render_transaction
 
     edits_by_file: dict[Path, list[Edit]] = {}
+    seen_blocks: set[tuple[str, int, int]] = set()
     for transaction in transactions:
+        if is_generated(transaction):
+            continue
         if not transaction.src_file or transaction.src_line_end < transaction.src_line_start:
             continue
+        block_key = (transaction.src_file, transaction.src_line_start, transaction.src_line_end)
+        if block_key in seen_blocks:
+            continue
+        seen_blocks.add(block_key)
         transaction.flag = Flag.CLEARED
         path = Path(transaction.src_file)
         indent, newline = detect_style(path)

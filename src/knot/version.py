@@ -1,6 +1,10 @@
 from importlib.metadata import PackageNotFoundError, version
 
-try:
-    __version__ = version("knot")
-except PackageNotFoundError:
-    __version__ = "0.6.0"
+for _distribution in ("knot-ledger", "knot"):
+    try:
+        __version__ = version(_distribution)
+        break
+    except PackageNotFoundError:
+        continue
+else:
+    __version__ = "0.7.0"
