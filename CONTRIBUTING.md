@@ -115,6 +115,11 @@ chore(repo): 初始化仓库文档
 5. **显示宽度**：中日韩文本排版 MUST 经 `width.py`，禁止 `len()` / `str.ljust()` 直接对齐
 6. **输入归一化**：所有用户输入入口 MUST 调用 `normalize_text()`
 7. **格式与 lint**：`ruff`，行宽 100，`RUF001/002/003` 已忽略（中文标点误报）
+8. **平台脚本约定**：`.ps1` MUST 以 UTF-8 BOM + CRLF 保存（Windows PowerShell 5.1 依赖 BOM 解码中文）；
+   `.bat` MUST 保持 CRLF；`.sh` MUST 使用 LF。安装 / 卸载脚本 MUST NOT 在测试中被真实执行
+   （测试只做语法检查），真实安装只在 CI 的 `installers` 作业与本机手工验收中进行
+9. **TUI 预算与鼠标**：`src/knot/tui/**` 总行数 MUST ≤ 1500（`tests/test_tui.py` 断言）；
+   每个鼠标操作 MUST 有键盘等价操作，鼠标事件 MUST 在 `term.read_key()` 中与键盘事件统一编码
 
 ## 文档同步
 
@@ -122,3 +127,4 @@ chore(repo): 初始化仓库文档
 
 - [结绳Knot开发文档.md](./结绳Knot开发文档.md)（变更记录表追加版本）
 - [CHANGELOG.md](./CHANGELOG.md)
+- [docs/发布说明/](./docs/发布说明/)（发布时新增该版本的发布说明）

@@ -28,12 +28,15 @@
 
 | 启动器 | 作用 |
 |---|---|
-| `knot.bat`（Windows）/ `./knot.sh` | 通用入口：无参数进入交互菜单 |
-| `界面.bat` / `./界面.sh` | **一键进入终端界面（TUI）** |
-| `网页.bat` / `./网页.sh` | **一键打开浏览器界面**（本地服务 + 自动打开浏览器） |
+| `knot.bat` / `knot.ps1`（Windows）、`./knot.sh` | 通用入口：无参数进入交互菜单 |
+| `界面.bat` / `界面.ps1`、`./界面.sh` | **一键进入终端界面（TUI）** |
+| `网页.bat` / `网页.ps1`、`./网页.sh` | **一键打开浏览器界面**（本地服务 + 自动打开浏览器） |
 
 ```bash
-knot 初始化 我的账本              # 生成账本骨架（加 --非交互 可一键生成）
+knot 新建 我的账本                # 新建账本（含可直接修改的默认内容）
+knot 打开 我的账本                # 打开终端界面（鼠标可点选 / Ctrl+单击多选）
+knot 示例                        # 复制示例账本（演示全部功能与 7 种图表）
+knot 自检                        # 环境与账本自检
 knot 记 38 餐饮 -f 招行 -n 午饭
 knot 记 2万3 房租 -f 招行 --date 昨天
 knot 查 --月 2026-09
@@ -79,20 +82,27 @@ option "operating_currency" "CNY"
 
 ## 安装
 
-开发中，尚未发布至 PyPI。发布后：
+**一键安装**（独立环境 + 全局 `knot` 命令，重复执行即升级）：
 
-```bash
-pip install knot
+```powershell
+git clone https://github.com/koltfranz/Knot.git
+cd Knot
+powershell -ExecutionPolicy Bypass -File .\安装.ps1      # Windows
 ```
-
-本地开发：
 
 ```bash
 git clone https://github.com/koltfranz/Knot.git
 cd Knot
-python -m venv .venv
-pip install -e .
+sh ./安装.sh                                            # macOS / Linux
 ```
+
+安装脚本会把 `knot` 放进用户 PATH（Windows：`%LOCALAPPDATA%\Programs\Knot`；
+macOS / Linux：`~/.local/share/knot` + `~/.local/bin` 软链），新开终端即可在任意目录使用。
+**一键卸载**（不删除账本数据）：`powershell -File .\卸载.ps1` / `sh ./卸载.sh`，
+两者都支持 `-DryRun` / `--dry-run`。
+
+**开发方式**：`python -m venv .venv` → `pip install -e .`（macOS / Linux 先 `source .venv/bin/activate`）。
+PyPI 尚未发布；发布后可直接 `pip install knot-ledger`。
 
 ## 文档
 
@@ -105,12 +115,14 @@ pip install -e .
 | [docs/版本规划.md](./docs/版本规划.md) | 版本号编排、各版本交付范围与发布门槛 |
 | [docs/发布前检查.md](./docs/发布前检查.md) | PyPI 包名、仓库名与商标的发布前核查记录 |
 | [docs/开发计划/v0.2.0.md](./docs/开发计划/v0.2.0.md) | v0.2.0 任务分解、验收标准与实施记录 |
+| [src/knot/data/演示账本](./src/knot/data/演示账本/README.md) | 示例账本：覆盖全部语法与 7 种图表（`knot 示例` 复制） |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | 贡献指南与提交规范 |
 | [CHANGELOG.md](./CHANGELOG.md) | 版本变更记录 |
+| [docs/发布说明/](./docs/发布说明/) | 各版本发布说明（亮点、兼容性、验收情况） |
 
 ## 项目状态
 
-当前版本 **0.7.0**（稳定化；语法已冻结），按版本规划推进：
+当前版本 **0.8.0**（语法冻结；新增交互与分发能力），按版本规划推进：
 
 - [x] **v0.1.0**（M0）语法定义、解析器、中文基础模块、CLI 基础命令（`记/查/余/检查/整理`）
 - [x] **v0.2.0**（M1）报表、导入与语言完备（关键字中英双写、一键规范化、一键运行与账本生成）
@@ -119,6 +131,7 @@ pip install -e .
 - [x] **v0.5.0**（M4 前半）记账增强（预算与进度、对账向导、定期交易预览、拼音检索、别名管理）
 - [x] **v0.6.0**（M4 后半）投资与多币种（FIFO/平均成本、报价折算、SQL 子集、现金流瀑布）
 - [x] **v0.7.0** 稳定化：语法冻结、Nuitka 三平台可执行（CI）、用户手册与速查定稿、性能验收（10 万笔 6.2 s）、无 P0/P1 缺陷
+- [x] **v0.8.0** 交互与分发：命名账本（`新建` / `打开`）、TUI 鼠标与批量操作、一键安装 / 卸载（PowerShell + POSIX）、`自检`、示例账本
 
 ## 许可证
 

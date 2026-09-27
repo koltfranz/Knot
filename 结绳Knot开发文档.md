@@ -1090,9 +1090,18 @@ class ChartSpec:
 | `import` | `导入` | 账单导入 |
 | `reconcile` | `对账` | 对账向导 |
 | `serve` | `服务` | 启动 Web 服务 |
-| `alias` | — | 别名管理 |
-| `init` | `初始化` `新建` | 生成账本骨架（M1） |
+| `alias` | `别名` | 别名管理 |
+| `init` | `初始化` | 生成账本骨架（M1） |
 | `normalize` | `规范` `nrm` | 全角 / 半角一键规范化（M1） |
+| `budget` | `预算` | 预算进度（M4） |
+| `recur` | `定期` | 定期模板与展开预览（M4） |
+| `holdings` | `持仓` | 投资持仓与盈亏（M4） |
+| `tui` | `界面` | 终端三栏界面（M3） |
+| `menu` | `菜单` | 交互菜单（M1） |
+| `create` | `新建` `创建` | 新建命名账本（v0.8.0） |
+| `open` | `打开` `开` | 打开账本 → TUI（`--网页` 走本地服务）（v0.8.0） |
+| `demo` | `示例` `示例账本` | 复制内置示例账本（v0.8.0） |
+| `doctor` | `自检` | 环境与账本自检（v0.8.0） |
 
 ## 8.2 命令示例
 
@@ -1103,10 +1112,16 @@ knot 记 5000 工资 -t 招行
 knot 记 2万3 房租 -f 招行
 knot 记                                  # 交互式
 
+knot 新建 我的账本                 # v0.8.0：命名账本（含默认内容）
+knot 打开 我的账本                 # v0.8.0：直接进 TUI（--网页 走浏览器）
+knot 示例                         # v0.8.0：复制示例账本
+knot 自检                         # v0.8.0：环境与账本自检
+
 knot 查 --月 2026-09
 knot 余 --树 --深度 2
-knot 报 收入|支出|净资产|现金流 --月 2026-09
+knot 报 收支|净资产|分类|科目 --月 2026-09
 knot 图 支出 --按 分类 --月 2026-09
+knot 图 现金流 -o 瀑布.svg          # 现金流瀑布
 
 knot 检查
 knot 整理
@@ -1170,7 +1185,7 @@ def style(text: str, *codes: int) -> str:
 
 Windows 平台输出前 MUST 调用 `enable_vt()`。
 
-shell 补全 MUST 由 `cli/completion.py` 生成静态脚本（bash / zsh / fish）。实现 SHOULD 遍历 `ArgumentParser` 的子命令与选项生成 `COMPREPLY`。
+shell 补全 MUST 由 `cli/completion.py` 生成静态脚本（bash / zsh / fish / powershell）。实现 SHOULD 遍历 `ArgumentParser` 的子命令与选项生成 `COMPREPLY`；PowerShell 使用 `Register-ArgumentCompleter -Native`。
 
 ---
 
@@ -1252,21 +1267,31 @@ class Screen:
 │   餐饮  1,240  │                           ├─────────────────┤
 │   交通    310  │                           │ 本月支出 ▁▃▅█▂▁ │
 └────────────────┴───────────────────────────┴─────────────────┘
- a记账 e编辑 /搜索 f筛选 t图表 s排序 ?帮助 q退出
+ a记账 e编辑 /搜索 f筛选 t图表 s排序 空格标记 b批量 ?帮助 q退出
 ```
 
 | 键 | 动作 |
 |---|---|
 | `a` | 新增 |
-| `e` | 编辑 |
+| `e` | 编辑（定期展开的交易禁止直接编辑） |
 | `/` | 搜索 |
 | `f` | 筛选 |
 | `t` | 图表 |
 | `s` | 排序 |
+| `空格` | 多选标记当前笔（`Esc` 清空） |
+| `b` | 批量菜单：汇总 / 打标签 / 导出 / 删除（删除前备份并二次确认） |
 | `?` | 帮助 |
 | `q` | 退出 |
 
-实现约束：TUI MUST NOT 实现通用 widget 树、布局引擎或样式表。布局为固定三栏，按行列直接计算坐标。总代码量 SHOULD 控制在 800 行以内。
+鼠标（v0.8.0）：单击选择流水 / 科目树、`Ctrl`+单击与 `Ctrl`+拖动多选、滚轮滚动、点击底部提示条等同按键。
+Windows 通过 `ReadConsoleInputW` 读取控制台事件（进入 raw 时关闭快速编辑、退出恢复），
+POSIX 通过 `1000/1002/1006` SGR 鼠标上报；坐标一律换算为视口坐标（Windows 需减去 `srWindow` 原点）。
+鼠标事件在 `term.read_key()` 中统一编码为 `mouse:<按钮>:<列>:<行>` 字符串，键盘事件保持键名，二者共用同一分发入口；
+每个鼠标操作 MUST 有键盘等价操作。
+
+实现约束：TUI MUST NOT 实现通用 widget 树、布局引擎或样式表。布局为固定三栏，按行列直接计算坐标
+（布局由 `App.layout()` 单点计算，渲染与鼠标命中共用）。总代码量 SHOULD 控制在 1500 行以内
+（v0.8.0 由 800 上调：新增鼠标、Windows 控制台事件层与批量操作）。
 
 ---
 
@@ -1475,6 +1500,7 @@ ruff check . && ruff format .
 
 | 场景 | 方式 |
 |---|---|
+| 日常使用（推荐） | `安装.ps1`（Windows）/ `安装.sh`（macOS、Linux）：独立 venv + 全局命令（v0.8.0） |
 | 开发 | `python -m venv` + `pip install -e .` |
 | 自用 | `python -m zipapp` 生成单文件 |
 | 家庭共享 | Docker 部署 Web 服务 |
@@ -1516,6 +1542,27 @@ CMD ["python", "-m", "knot", "服务", "--host", "0.0.0.0", "--端口", "5000"]
 2. GitHub  仓库名 knot 可用性
 3. 商标    「结绳」第 9 类（软件）与第 42 类注册情况
 ```
+
+---
+
+## 15.6 一键安装与卸载（v0.8.0）
+
+| 平台 | 脚本 | 安装位置与命令 |
+|---|---|---|
+| Windows | `安装.ps1` / `卸载.ps1` | `%LOCALAPPDATA%\Programs\Knot`（venv + `bin\knot.cmd` + `bin\knot.ps1`），用户 PATH 追加 `bin` |
+| macOS / Linux | `安装.sh` / `卸载.sh` | `~/.local/share/knot`（venv），`~/.local/bin/knot` 软链，`~/.profile` 标记块 |
+
+约束：
+
+- 安装 MUST 使用独立虚拟环境，MUST NOT 修改系统 PATH / 系统 Python；重复执行 MUST 幂等（等价升级）
+- 卸载 MUST NOT 依赖 Python；MUST 只清理安装目录、命令与 PATH 条目；MUST NOT 删除账本文件
+  （若安装目录内存在 `.knot` 文件，MUST 在删除前明确提示）
+- 安装 MUST 写 `install.json`（版本 / 来源 / 命令目录 / 时间）供卸载与排查使用
+- 安装 MUST 以 `knot 自检` 收尾（无账本只告警不失败）
+- 两个平台 MUST 提供 `-DryRun` / `--dry-run` 与 `-NoPath` / `--no-path`
+- `.ps1` MUST 以 UTF-8 BOM + CRLF 保存（Windows PowerShell 5.1 依赖 BOM 解码中文），
+  `.gitattributes` MUST 声明 `*.ps1 text eol=crlf`
+- CI MUST 在两个平台真实执行安装 / 卸载冒烟（`-NoPath`，不污染 runner）
 
 ---
 
@@ -1658,6 +1705,21 @@ CMD ["python", "-m", "knot", "服务", "--host", "0.0.0.0", "--端口", "5000"]
 | 5 | 缺陷清理：修复对账/归类改写定期模板的 P0；`apply_edits` 重叠编辑防护；5 项回归测试 | 质量 |
 | 6 | 文档定稿：用户手册新增分发/性能章节、语法速查与大全标注冻结、README 状态更新 | 文档 |
 
+## 16.8 交互与分发任务分解（v0.8.0）
+
+| 序号 | 任务 | 主题 |
+|---|---|---|
+| 1 | `新建` / `打开`：`run_scaffold()` 复用、名字 → 账本解析、非交互终端退回概况 | 命名账本 |
+| 2 | 骨架默认内容：选项注释 + 「去掉行首 `;` 即可用」示例段，测试保证解注释后零错误 | 上手体验 |
+| 3 | TUI 鼠标：`term` 事件层（Windows `ReadConsoleInputW` / POSIX SGR）、布局单点、命中测试、底部提示条可点 | 交互 |
+| 4 | TUI 批量操作：`core/bulk.py`（汇总 / 打标签 / 导出 / 删除 + 备份），`b` 菜单、`空格` 标记、定期交易不参与写回 | 交互 |
+| 5 | 一键安装与卸载：`安装.ps1` / `卸载.ps1`、`安装.sh` / `卸载.sh`、`install.json`、CI `installers` 作业 | 分发 |
+| 6 | PowerShell：`.ps1` 启动器（BOM + CRLF）与 `--补全 powershell` | 平台 |
+| 7 | `自检`（`doctor`）：环境、编码、VT、终端、账本、安装完整性，`--json` | 质量 |
+| 8 | 示例账本：内置演示账本（全部语法 + 7 种图表）与 `示例` 命令、`test_demo.py` 持续校验 | 上手体验 |
+| 9 | 缺陷清理：TUI 改写定期模板（P0）、`定期` 命令（含崩溃）、`ORDER BY` 聚合表达式（P1）+ 回归测试 | 质量 |
+| 10 | 文档：用户手册（安装、命名账本、示例账本、TUI 鼠标）、语法速查、README、版本规划、变更日志 | 文档 |
+
 ---
 
 # 17 风险登记册
@@ -1681,7 +1743,12 @@ CMD ["python", "-m", "knot", "服务", "--host", "0.0.0.0", "--端口", "5000"]
 | R15 | 货币符号混用 | 币种不一致 | 归一化为 `CNY` |
 | R16 | 中文排序不符合直觉 | 体验下降 | M4 增加拼音排序；默认按层级 |
 | R17 | 导入重复 | 重复交易 | 指纹去重 |
-| R18 | TUI 框架化倾向 | 工期失控 | 限制 800 行；禁止实现布局引擎 |
+| R18 | TUI 框架化倾向 | 工期失控 | 限制 1500 行（v0.8.0 起）；禁止实现布局引擎 |
+| R19 | 终端不支持鼠标上报 | 鼠标不可用 | 每个鼠标操作都有键盘等价；终端不支持时静默降级 |
+| R20 | Windows 快速编辑模式吞掉鼠标事件 | TUI 鼠标失效 | 进入 raw 时关闭 `ENABLE_QUICK_EDIT_MODE` 与行输入，退出恢复原模式 |
+| R21 | 安装脚本改动用户 PATH | 环境污染 | 仅追加用户 PATH（不动系统 PATH）；卸载移除；`-NoPath` 供 CI 使用 |
+| R22 | `.ps1` 中文在 Windows PowerShell 5.1 下乱码 | 提示不可读 | 统一 UTF-8 BOM + CRLF，并在测试中校验 |
+| R23 | 批量删除误删交易 | 数据丢失 | 时间戳 `.bak` 备份 + 二次确认 + 定期展开交易不可删除 |
 
 ---
 
