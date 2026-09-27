@@ -17,7 +17,7 @@ def add_parser(sub) -> None:
     p.add_argument("--树", "--tree", dest="tree", action="store_true", help="树形展示")
     p.add_argument("--深度", "--depth", dest="depth", type=int, metavar="N", help="树形最大深度")
     p.add_argument("--json", dest="as_json", action="store_true", help="输出结构化 JSON")
-    p.set_defaults(func=run)
+    p.set_defaults(func=run, needs_ledger=True)
 
 
 def _select_names(book, account: str | None) -> list[str]:

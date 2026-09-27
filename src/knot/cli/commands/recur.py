@@ -19,7 +19,7 @@ def add_parser(sub) -> None:
     p = sub.add_parser("recur", aliases=["定期"], help="定期交易模板与展开预览")
     p.add_argument("--月", "--month", dest="month", metavar="月份", help="查看该月展开出的交易")
     p.add_argument("--json", dest="as_json", action="store_true")
-    p.set_defaults(func=run)
+    p.set_defaults(func=run, needs_ledger=True)
 
 
 def templates(book) -> list[Recur]:

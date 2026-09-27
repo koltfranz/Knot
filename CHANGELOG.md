@@ -4,6 +4,26 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.8.1] - 2026-09-27
+
+补丁版：只修缺陷，不新增功能。
+
+### Fixed
+
+- **缺少账本时的提示具有误导性**：在没有 `main.knot` 的目录里运行 `查` / `余` / `检查` 等读取类命令，
+  会先报「文件不存在」再补一句「请先修复账本」，让人以为账本坏了。现在这些命令直接给出可执行的提示
+  （`当前目录没有账本 main.knot；可用 knot create 我的账本 新建，或 knot 示例 复制示例账本，或用 --账本 路径 指定`），
+  并以退出码 `2`（用法错误）结束
+- **Windows CI 一直失败**：`scripts/生成语法大全.py` 等脚本打印中文前未调用 `setup_console()`，
+  在 stdout 为 cp1252 的 Windows 运行器上抛 `UnicodeEncodeError`（CI 的「语法大全一致性」步骤）
+- **Release 的 Nuitka 作业一直失败**：`scripts/构建可执行.py` 以 `--output-dir 值` 形式传参，
+  Nuitka 要求 `--output-dir=值`；三平台可执行程序因此从未成功产出
+- `scripts/性能基准.py` 补充 `src` 路径注入，可直接在仓库内运行
+
+### Notes
+
+- 测试 321 项；CI 全绿（含新增的 `installers` 双平台真实安装 / 卸载冒烟）
+
 ## [0.8.0] - 2026-09-27
 
 交互与分发：命名账本、TUI 鼠标与批量操作、正式安装/卸载、示例账本。

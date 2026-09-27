@@ -53,7 +53,7 @@ def add_parser(sub) -> None:
         help="自动补全未闭合的引号与花括号",
     )
     p.add_argument("--json", dest="as_json", action="store_true", help="输出结构化 JSON")
-    p.set_defaults(func=run)
+    p.set_defaults(func=run, needs_ledger=True)
 
 
 def _targets(args) -> list[Path]:

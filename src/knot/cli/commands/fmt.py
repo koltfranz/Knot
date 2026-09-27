@@ -16,7 +16,7 @@ def add_parser(sub) -> None:
         action="store_true",
         help="只检查是否需要整理，不写入",
     )
-    p.set_defaults(func=run)
+    p.set_defaults(func=run, needs_ledger=True)
 
 
 def run(args) -> int:

@@ -35,7 +35,7 @@ def add_parser(sub) -> None:
         help="把净资产按报价折算到该币种（默认记账币种）",
     )
     p.add_argument("--json", dest="as_json", action="store_true")
-    p.set_defaults(func=run)
+    p.set_defaults(func=run, needs_ledger=True)
 
 
 def _method(text: str) -> str:

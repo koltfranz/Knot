@@ -28,7 +28,7 @@ def add_parser(sub) -> None:
     p.add_argument("--条数", dest="limit", type=int, metavar="N")
     p.add_argument("--json", dest="as_json", action="store_true", help="输出结构化 JSON")
     p.add_argument("--sql", dest="sql", metavar="语句", help="用 SQL 子集查询（见 语法大全）")
-    p.set_defaults(func=run)
+    p.set_defaults(func=run, needs_ledger=True)
 
 
 def _filter(args, aliases) -> Filter:

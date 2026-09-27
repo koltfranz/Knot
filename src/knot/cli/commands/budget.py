@@ -16,7 +16,7 @@ def add_parser(sub) -> None:
     p = sub.add_parser("budget", aliases=["预算"], help="预算与进度")
     p.add_argument("--月", "--month", dest="month", metavar="月份", help="如 2026-09 或 本月")
     p.add_argument("--json", dest="as_json", action="store_true")
-    p.set_defaults(func=run)
+    p.set_defaults(func=run, needs_ledger=True)
 
 
 def _month(text: str | None) -> str | None:

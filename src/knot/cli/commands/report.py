@@ -47,7 +47,7 @@ def add_parser(sub) -> None:
     p.add_argument("--深度", dest="depth", type=int, default=2, metavar="N", help="分类聚合层级")
     p.add_argument("--前", dest="top", type=int, default=10, metavar="N", help="只显示前 N 项")
     p.add_argument("--json", dest="as_json", action="store_true")
-    p.set_defaults(func=run)
+    p.set_defaults(func=run, needs_ledger=True)
 
 
 def _range(args) -> tuple[date | None, date | None]:

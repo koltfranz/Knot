@@ -4,7 +4,7 @@ import io
 import json
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from knot.cli.main import main
@@ -68,9 +68,20 @@ class CliTest(unittest.TestCase):
         self.assertEqual(self._run("查"), 1)
 
     def test_missing_ledger(self) -> None:
-        self.assertEqual(self._run("余"), 1)
+        self.assertEqual(self._run("余"), 2)
         self.assertEqual(self._run("记", "38", "餐饮", "-f", "现金", "-d", "2026-09-20"), 0)
         self.assertTrue(self.ledger.exists())
+
+    def test_missing_ledger_hint(self) -> None:
+        """缺账本时给出可执行的提示，而不是「请先修复账本」。"""
+        errors = io.StringIO()
+        with redirect_stderr(errors):
+            code = self._run("检查")
+        message = errors.getvalue()
+        self.assertEqual(code, 2)
+        self.assertIn("没有账本", message)
+        self.assertIn("knot create", message)
+        self.assertNotIn("请先修复账本", message)
 
     def test_bal_tree_and_json(self) -> None:
         self._run("记", "38", "餐饮", "-f", "现金", "-d", "2026-09-20")

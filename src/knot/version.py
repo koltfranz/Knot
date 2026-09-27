@@ -7,4 +7,4 @@ for _distribution in ("knot-ledger", "knot"):
     except PackageNotFoundError:
         continue
 else:
-    __version__ = "0.8.0"
+    __version__ = "0.8.1"

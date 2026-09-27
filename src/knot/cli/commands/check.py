@@ -11,7 +11,7 @@ from knot.core.loader import load_book
 def add_parser(sub) -> None:
     p = sub.add_parser("check", aliases=["检查"], help="校验账本")
     p.add_argument("--静默", "--quiet", dest="quiet", action="store_true", help="只在出错时输出")
-    p.set_defaults(func=run)
+    p.set_defaults(func=run, needs_ledger=True)
 
 
 def run(args) -> int:

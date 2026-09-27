@@ -36,7 +36,7 @@ def add_parser(sub) -> None:
     )
     p.add_argument("--条数", dest="limit", type=int, default=20, metavar="N")
     p.add_argument("--json", dest="as_json", action="store_true")
-    p.set_defaults(func=run)
+    p.set_defaults(func=run, needs_ledger=True)
 
 
 def run(args) -> int:

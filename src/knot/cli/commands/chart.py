@@ -58,7 +58,7 @@ def add_parser(sub) -> None:
         "-o", "--输出", dest="output", metavar="文件.svg", help="写入文件，默认输出到标准输出"
     )
     p.add_argument("--json", dest="as_json", action="store_true", help="输出 ChartSpec JSON")
-    p.set_defaults(func=run)
+    p.set_defaults(func=run, needs_ledger=True)
 
 
 def _range(args):
