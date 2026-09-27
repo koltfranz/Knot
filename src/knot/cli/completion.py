@@ -42,13 +42,16 @@ POWERSHELL_TEMPLATE = """# 结绳 Knot PowerShell 补全
 # 生成：knot --补全 powershell > knot-completion.ps1
 # 启用：在 $PROFILE 里加一行  . "$HOME\\knot-completion.ps1"
 $__knotCommands = @(__COMMANDS__)
+$__knotOptions = @('--账本', '--ledger', '--补全', '--completion', '--version', '-h', '--help')
 Register-ArgumentCompleter -Native -CommandName knot -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
     $elements = @($commandAst.CommandElements | Select-Object -Skip 1)
-    if ($elements.Count -le 0) {
-        $__knotCommands | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
-            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
-        }
+    if ($elements.Count -le 1) {
+        @($__knotCommands + $__knotOptions) |
+            Where-Object { $_ -like "$wordToComplete*" } |
+            ForEach-Object {
+                [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+            }
         return
     }
     Get-ChildItem -Path "$wordToComplete*" -ErrorAction SilentlyContinue | ForEach-Object {

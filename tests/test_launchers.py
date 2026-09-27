@@ -139,6 +139,8 @@ class CompletionTest(unittest.TestCase):
         self.assertIn("Register-ArgumentCompleter", text)
         self.assertIn("'create'", text)
         self.assertIn("'示例'", text)
+        self.assertIn("--账本", text)
+        self.assertIn("$elements.Count -le 1", text)
 
         pwsh = generate("pwsh", build_parser())
         self.assertEqual(text, pwsh)
