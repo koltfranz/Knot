@@ -123,6 +123,18 @@ class SqlTest(unittest.TestCase):
         self.assertEqual(outcome["条数"], 2)
         self.assertEqual(outcome["行"][0][1], "100,000.00")
 
+    def test_order_by_aggregate_expression(self) -> None:
+        """回归：ORDER BY 支持聚合表达式（手册示例 `ORDER BY 合计(金额) DESC` 曾经报错）。"""
+        from decimal import Decimal
+
+        book = build_book()
+        outcome = execute(
+            book, "SELECT 合计(金额) FROM 分录 GROUP BY 科目 ORDER BY 合计(金额) DESC LIMIT 2"
+        )
+        self.assertEqual(outcome["条数"], 2)
+        values = [Decimal(row[1].replace(",", "")) for row in outcome["行"]]
+        self.assertEqual(values, sorted(values, reverse=True))
+
     def test_transaction_source(self) -> None:
         book = build_book()
         outcome = execute(book, "SELECT 日期, 摘要, 标签 FROM 流水 WHERE 摘要 包含 买入")

@@ -38,6 +38,27 @@ complete -c knot -f
 {lines}
 """
 
+POWERSHELL_TEMPLATE = """# 结绳 Knot PowerShell 补全
+# 生成：knot --补全 powershell > knot-completion.ps1
+# 启用：在 $PROFILE 里加一行  . "$HOME\\knot-completion.ps1"
+$__knotCommands = @(__COMMANDS__)
+Register-ArgumentCompleter -Native -CommandName knot -ScriptBlock {
+    param($wordToComplete, $commandAst, $cursorPosition)
+    $elements = @($commandAst.CommandElements | Select-Object -Skip 1)
+    if ($elements.Count -le 0) {
+        $__knotCommands | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+        }
+        return
+    }
+    Get-ChildItem -Path "$wordToComplete*" -ErrorAction SilentlyContinue | ForEach-Object {
+        [System.Management.Automation.CompletionResult]::new(
+            $_.Name, $_.Name, 'ProviderItem', $_.FullName
+        )
+    }
+}
+"""
+
 
 def _commands(parser: argparse.ArgumentParser) -> list[str]:
     names: list[str] = []
@@ -67,4 +88,8 @@ def generate(shell: str, parser: argparse.ArgumentParser) -> str:
             f"complete -c knot -n '__fish_use_subcommand' -a '{name}'" for name in commands
         )
         return FISH_TEMPLATE.format(lines=lines)
+    if shell in ("powershell", "pwsh"):
+        return POWERSHELL_TEMPLATE.replace(
+            "__COMMANDS__", ", ".join(f"'{name}'" for name in commands)
+        )
     raise ValueError(f"不支持的 shell：{shell}")

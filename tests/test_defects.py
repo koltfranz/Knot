@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
+from knot.cli.main import main
 from knot.core.actions import reclassify
 from knot.core.aliases import AliasTable
 from knot.core.loader import load_book
 from knot.core.reconcile import mark_cleared, reconcile
+from knot.tui.app import App
+from knot.tui.input import KeySource
 
 LEDGER = """option "strict" "off"
 
@@ -81,6 +86,60 @@ class RecurSafetyTest(unittest.TestCase):
         self.assertEqual(mark_cleared(duplicated), 1)
         _result, _book, diags = load_book(self.path)
         self.assertEqual([d for d in diags if d.level == "error"], [])
+
+
+class TuiRecurEditTest(unittest.TestCase):
+    """回归：TUI 编辑摘要 MUST NOT 改写定期模板（展开实例共享模板行区间）。"""
+
+    def test_edit_narration_on_generated_transaction_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "main.knot"
+            path.write_text(LEDGER, encoding="utf-8")
+            before = path.read_text(encoding="utf-8")
+
+            out = io.StringIO()
+            app = App(path, KeySource(["down", "e", "改坏的摘要", "q"]), out)
+            self.assertEqual(app.run(), 0)
+
+            self.assertEqual(path.read_text(encoding="utf-8"), before, "定期模板 MUST 保持不变")
+            self.assertIn("定期", app.status)
+
+
+class RecurCommandTest(unittest.TestCase):
+    """回归：定期模板展开后仍可被 `定期` 命令列出（曾经永远显示"没有模板"）。"""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.path = Path(self._tmp.name) / "main.knot"
+        self.path.write_text(LEDGER, encoding="utf-8")
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_templates_are_kept_on_book(self) -> None:
+        from knot.cli.commands.recur import templates
+
+        book = load_book(self.path)[1]
+        self.assertEqual(len(templates(book)), 1)
+        self.assertEqual(templates(book)[0].description, "房租")
+
+    def test_recur_command_lists_templates(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["--账本", str(self.path), "定期"])
+        output = buffer.getvalue()
+        self.assertEqual(code, 0)
+        self.assertIn("房租", output)
+        self.assertNotIn("还没有定期交易模板", output)
+
+    def test_recur_month_preview(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["--账本", str(self.path), "定期", "--月", "2026-02"])
+        output = buffer.getvalue()
+        self.assertEqual(code, 0)
+        self.assertIn("2026-02-01", output)
+        self.assertIn("3,000.00", output)
 
 
 class OverlapGuardTest(unittest.TestCase):

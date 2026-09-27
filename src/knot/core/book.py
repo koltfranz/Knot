@@ -16,6 +16,7 @@ from knot.core.model import (
     Open,
     Options,
     Posting,
+    Recur,
     Transaction,
 )
 from knot.core.recur import expand_recur
@@ -62,6 +63,7 @@ class Book:
     accounts: dict[str, Open]
     transactions: list[Transaction]
     sources: dict[str, list[str]] = field(default_factory=dict)
+    recur_templates: list[Recur] = field(default_factory=list)
 
     def default_currency(self, account: str) -> str:
         opened = self.accounts.get(account)
@@ -135,6 +137,7 @@ def build(
     diags: list[Diagnostic] = []
     aliases = aliases or AliasTable()
 
+    templates = [d for d in directives if isinstance(d, Recur)]
     directives = expand_recur(directives)
     directives.sort(key=lambda d: (getattr(d, "date", date.max), getattr(d, "src_line_start", 0)))
 
@@ -153,7 +156,7 @@ def build(
                 if posting.counterparty:
                     posting.counterparty = _resolve_name(aliases, posting.counterparty)
 
-    book = Book(directives, options, accounts, transactions, sources)
+    book = Book(directives, options, accounts, transactions, sources, templates)
     auto_open_accounts(book, diags)
     balance_single_legs(book, diags)
     check_balance(book, diags)

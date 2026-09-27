@@ -4,7 +4,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from knot.cli.ansi import GREEN, YELLOW, style
+from knot.cli.ansi import DIM, GREEN, YELLOW, style
 from knot.cli.commands import abort_on_errors
 from knot.core.diagnostic import count
 from knot.core.keywords import ZH
@@ -15,9 +15,8 @@ from knot.core.scaffold import ScaffoldOptions, create_ledger
 LANGUAGE_CHOICES = {"zh": ZH, "中文": ZH, "en": "en", "英文": "en"}
 
 
-def add_parser(sub) -> None:
-    p = sub.add_parser("init", aliases=["初始化", "新建"], help="生成账本骨架")
-    p.add_argument("目录", nargs="?", default=".", metavar="目录", help="账本目录，默认当前目录")
+def add_scaffold_options(p) -> None:
+    """骨架生成的公共选项（目录/名字由各命令自行声明）。"""
     p.add_argument("--年份", dest="year", type=int, metavar="年", help="年份文件，默认今年")
     p.add_argument("--币种", dest="currency", default="CNY", metavar="币种")
     p.add_argument("--默认资产", dest="default_asset", default="资产:现金", metavar="科目")
@@ -29,6 +28,12 @@ def add_parser(sub) -> None:
     p.add_argument(
         "--非交互", dest="non_interactive", action="store_true", help="不提问，全部取默认值"
     )
+
+
+def add_parser(sub) -> None:
+    p = sub.add_parser("init", aliases=["初始化"], help="生成账本骨架")
+    p.add_argument("目录", nargs="?", default=".", metavar="目录", help="账本目录，默认当前目录")
+    add_scaffold_options(p)
     p.set_defaults(func=run)
 
 
@@ -39,15 +44,20 @@ def _prompt(label: str, default: str) -> str:
     return value or default
 
 
-def run(args) -> int:
-    language = LANGUAGE_CHOICES.get(normalize_text(args.language).lower())
+def _language(raw: str) -> str:
+    language = LANGUAGE_CHOICES.get(normalize_text(raw).lower())
     if language is None:
-        raise KnotError(f"未知语言：{args.language}（可选 zh / en）")
+        raise KnotError(f"未知语言：{raw}（可选 zh / en）")
+    return language
 
-    directory = Path(args.目录)
+
+def run_scaffold(args, directory: Path, *, ask_directory: bool = False, hint: str = "") -> int:
+    """生成账本骨架：`初始化` 与 `新建` 共用同一条写入路径。"""
+    language = _language(args.language)
     currency = args.currency
     if not args.non_interactive:
-        directory = Path(_prompt("账本目录", str(directory)))
+        if ask_directory:
+            directory = Path(_prompt("账本目录", str(directory)))
         currency = _prompt("记账币种", currency)
         language = LANGUAGE_CHOICES.get(
             normalize_text(_prompt("关键字语言（zh/en）", language)).lower(), language
@@ -83,5 +93,18 @@ def run(args) -> int:
                 GREEN,
             )
         )
-        print(f"下一步：knot --账本 {main_knot} 记 38 餐饮 -f 现金 -n 午饭")
+        if result.created:
+            print(style("提示：年份文件里带有注释示例，去掉行首的 ; 即可使用", DIM))
+    if hint:
+        print(f"下一步：{hint}")
     return 0
+
+
+def run(args) -> int:
+    directory = Path(args.目录)
+    return run_scaffold(
+        args,
+        directory,
+        ask_directory=True,
+        hint=f"knot --账本 {directory / 'main.knot'} 记 38 餐饮 -f 现金 -n 午饭",
+    )

@@ -82,6 +82,13 @@ class ListView:
     def visible(self) -> list[str]:
         return self.rows[self.offset : self.offset + self.height]
 
+    def index_at(self, row: int) -> int | None:
+        """可见行号（从 0 起，限列表高度内）→ 行下标；越界返回 None。"""
+        if row < 0 or row >= self.height:
+            return None
+        index = self.offset + row
+        return index if index < len(self.rows) else None
+
     def status(self) -> str:
         return f"{self.selected + 1}/{len(self.rows)}" if self.rows else "无记录"
 
@@ -89,6 +96,7 @@ class ListView:
 def build_rows(transactions: list) -> tuple[list[str], list]:
     """把交易渲染为列表文本与原始对象（日期 标志 摘要 科目 金额）。"""
     from knot.core.amount import fmt_amount
+    from knot.core.recur import is_generated
 
     rows = []
     for tx in transactions:
@@ -97,8 +105,9 @@ def build_rows(transactions: list) -> tuple[list[str], list]:
         amount = fmt_amount(posting.units.number) if posting and posting.units else ""
         account = posting.account if posting else ""
         label = tx.payee or tx.narration or ""
+        marker = "⟳" if is_generated(tx) else " "
         rows.append(
-            f"{tx.date.strftime('%m-%d')} {tx.flag.value} "
+            f"{tx.date.strftime('%m-%d')} {tx.flag.value} {marker} "
             f"{label[:12]:<12} {account[:18]:<18} {amount:>12}"
         )
     return rows, list(transactions)

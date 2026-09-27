@@ -23,7 +23,8 @@ def add_parser(sub) -> None:
 
 
 def templates(book) -> list[Recur]:
-    return [d for d in book.directives if isinstance(d, Recur)]
+    """定期模板：展开后仍保留在 book.recur_templates 上（directives 里只剩展开实例）。"""
+    return list(book.recur_templates)
 
 
 def next_occurrence(template: Recur, after: date) -> date | None:
@@ -32,6 +33,12 @@ def next_occurrence(template: Recur, after: date) -> date | None:
         if when > after:
             return when
     return None
+
+
+def _next(template: Recur, today: date) -> str:
+    """下一次发生；已全部发生完显示「—」。"""
+    upcoming = next_occurrence(template, today)
+    return upcoming.isoformat() if upcoming else ""
 
 
 def run(args) -> int:
@@ -47,8 +54,8 @@ def run(args) -> int:
             "说明": item.description,
             "起": item.date_from.isoformat(),
             "止": item.date_to.isoformat() if item.date_to else "—",
-            "下次": (next_occurrence(item, today) or item.date_from).isoformat(),
-            "分录": len(item.postings),
+            "下次": (_next(item, today) or "—"),
+            "分录": str(len(item.postings)),
             "来源": f"{Path(item.src_file).name}:{item.src_line_start}",
         }
         for item in items

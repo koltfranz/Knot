@@ -32,7 +32,9 @@ CONDITION_RE = re.compile(
     r"(?P<value>.+?)\s*$"
 )
 ORDER_RE = re.compile(
-    r"^(?P<field>[\w\u4e00-\u9fff]+)(?:\s+(?P<direction>ASC|DESC|升序|降序))?$", re.IGNORECASE
+    r"^(?P<field>[\w\u4e00-\u9fff]+(?:\([^)]*\))?)"
+    r"(?:\s+(?P<direction>ASC|DESC|升序|降序))?$",
+    re.IGNORECASE,
 )
 FUNCTIONS = ("合计", "求和", "计数", "平均", "最大", "最小")
 

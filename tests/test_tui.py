@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import io
+import struct
 import tempfile
 import unittest
 from decimal import Decimal
 from pathlib import Path
 
 from knot.core.loader import load_book
-from knot.tui.app import App
+from knot.tui import input as keys
+from knot.tui import term
+from knot.tui.app import KEYS_HINT, App
 from knot.tui.screen import Screen
 from knot.tui.widgets import spark
 from knot.tui.widgets.form import Form
@@ -25,6 +28,19 @@ LEDGER = """option "strict" "off"
 
 2026-01-20 * "外卖"  费用:餐饮:外卖  50.00 CNY  @ 资产:现金
 2026-02-10 * "工资"  收入:工资  -8,000.00 CNY  @ 资产:现金
+"""
+
+RECUR_LEDGER = """option "strict" "off"
+
+2026-01-01 open 资产:现金 CNY
+2026-01-01 open 权益:期初
+
+2026-01-01 * "期初"
+  资产:现金     1,000.00 CNY
+  权益:期初
+
+2026-01-01 recur "monthly" "房租" from 2026-01-01 to 2026-03-01
+  费用:居住:房租   3,000.00 CNY  @ 资产:现金
 """
 
 
@@ -88,6 +104,78 @@ class SparkTest(unittest.TestCase):
         self.assertEqual(len(set(text)), 1)
 
 
+class TermTest(unittest.TestCase):
+    def test_parse_escape_keys(self) -> None:
+        self.assertEqual(term.parse_escape(b"\x1b[A"), "up")
+        self.assertEqual(term.parse_escape(b"\x1b[5~"), "pgup")
+        self.assertEqual(term.parse_escape(b"\x1b[3~"), "delete")
+        self.assertEqual(term.parse_escape(b"\x1b"), "esc")
+        self.assertEqual(term.parse_escape(b"\x1bx"), "esc")
+
+    def test_parse_escape_mouse(self) -> None:
+        self.assertEqual(term.parse_escape(b"\x1b[<0;12;5M"), "mouse:left:12:5")
+        self.assertEqual(term.parse_escape(b"\x1b[<16;3;4M"), "mouse:ctrl-left:3:4")
+        self.assertEqual(term.parse_escape(b"\x1b[<64;9;9M"), "mouse:wheel-up:9:9")
+        self.assertEqual(term.parse_escape(b"\x1b[<65;9;9M"), "mouse:wheel-down:9:9")
+        self.assertEqual(term.parse_escape(b"\x1b[<32;7;2M"), "mouse:drag-left:7:2")
+        self.assertEqual(term.parse_escape(b"\x1b[<0;12;5m"), "")
+
+    def test_console_record_key(self) -> None:
+        def key_event(down: int, vk: int, char: int) -> bytes:
+            return struct.pack("<HxxiHHHHI", 0x0001, down, 1, vk, 0, char, 0)
+
+        self.assertEqual(term.parse_console_record(key_event(1, 0x51, ord("q"))), "q")
+        self.assertEqual(term.parse_console_record(key_event(0, 0x51, ord("q"))), "")
+        self.assertEqual(term.parse_console_record(key_event(1, 0x26, 0)), "up")
+        self.assertEqual(term.parse_console_record(key_event(1, 0x0D, 13)), "enter")
+
+    def test_console_record_mouse(self) -> None:
+        def mouse_event(x: int, y: int, buttons: int, control: int, flags: int) -> bytes:
+            return struct.pack("<HxxhhIII", 0x0002, x, y, buttons, control, flags)
+
+        self.assertEqual(term.parse_console_record(mouse_event(11, 4, 1, 0, 0)), "mouse:left:12:5")
+        self.assertEqual(
+            term.parse_console_record(mouse_event(11, 4, 1, 0, 0), (0, 1)), "mouse:left:12:4"
+        )
+        self.assertEqual(
+            term.parse_console_record(mouse_event(11, 4, 1, 0x0008, 0)), "mouse:ctrl-left:12:5"
+        )
+        self.assertEqual(
+            term.parse_console_record(mouse_event(11, 4, 120 << 16, 0, 0x0004)),
+            "mouse:wheel-up:12:5",
+        )
+        self.assertEqual(
+            term.parse_console_record(mouse_event(11, 4, (-120 & 0xFFFF) << 16, 0, 0x0004)),
+            "mouse:wheel-down:12:5",
+        )
+        self.assertEqual(term.parse_console_record(mouse_event(11, 4, 0, 0, 0)), "")
+
+    def test_console_record_resize(self) -> None:
+        self.assertEqual(term.parse_console_record(b"\x04\x00"), "resize")
+
+
+class InputTest(unittest.TestCase):
+    def test_parse_mouse(self) -> None:
+        self.assertEqual(keys.parse_mouse("mouse:ctrl-left:34:7"), ("ctrl-left", 34, 7))
+        self.assertIsNone(keys.parse_mouse("up"))
+        self.assertIsNone(keys.parse_mouse("mouse:left:x:1"))
+        self.assertTrue(keys.is_mouse("mouse:left:1:1"))
+        self.assertFalse(keys.is_mouse("left"))
+
+    def test_mouse_button(self) -> None:
+        self.assertEqual(keys.mouse_button("ctrl-left"), ("left", True, False))
+        self.assertEqual(keys.mouse_button("shift-wheel-up"), ("wheel-up", False, True))
+
+    def test_footer_hits(self) -> None:
+        hits = keys.footer_hits(" a记账 q退出", 40)
+        self.assertEqual([item[2] for item in hits], ["a", "q"])
+        self.assertEqual(hits[0][0], 28)
+        self.assertEqual(hits[1][0], 34)
+
+        space = keys.footer_hits(" 空格标记", 40)
+        self.assertEqual(space[0][2], " ")
+
+
 class ListViewTest(unittest.TestCase):
     def test_navigation_and_pages(self) -> None:
         view = ListView(height=3)
@@ -121,6 +209,16 @@ class ListViewTest(unittest.TestCase):
         key = view.current_key()
         view.set_rows(rows, raw)
         self.assertEqual(view.current_key(), key)
+
+    def test_index_at(self) -> None:
+        view = ListView(height=2)
+        view.set_rows([f"行{index}" for index in range(4)])
+        self.assertEqual(view.index_at(0), 0)
+        view.move(2)
+        self.assertEqual(view.index_at(0), 1)
+        self.assertEqual(view.index_at(1), 2)
+        self.assertIsNone(view.index_at(2))
+        self.assertIsNone(view.index_at(-1))
 
 
 def build_rows_from_ledger():
@@ -207,11 +305,18 @@ class AppTest(unittest.TestCase):
 
     def _run(self, script: list[str]) -> tuple[int, str, App]:
         out = io.StringIO()
-        app = App(
-            self.ledger, __import__("knot.tui.input", fromlist=["KeySource"]).KeySource(script), out
-        )
+        app = App(self.ledger, keys.KeySource(script), out)
         code = app.run()
         return code, out.getvalue(), app
+
+    def _app(self) -> App:
+        return App(self.ledger, keys.KeySource([]), io.StringIO())
+
+    def _scripted(self, app: App, script: list[str]) -> None:
+        app.keys = keys.KeySource([*script, "q"])
+
+    def _click(self, app: App, row: int, button: str = "left") -> str:
+        return f"mouse:{button}:{app.layout().list_x + 1}:{4 + row + 1}"
 
     def test_navigation_and_help(self) -> None:
         code, output, app = self._run(["down", "?", "?", "q"])
@@ -251,19 +356,108 @@ class AppTest(unittest.TestCase):
     def test_empty_ledger(self) -> None:
         empty = Path(self._tmp.name) / "空.knot"
         out = io.StringIO()
-        from knot.tui.input import KeySource
-
-        app = App(empty, KeySource(["q"]), out)
+        app = App(empty, keys.KeySource(["q"]), out)
         self.assertEqual(app.run(), 0)
         self.assertIn("交易 0 笔", out.getvalue())
 
+    def test_mouse_click_selects_row(self) -> None:
+        app = self._app()
+        second, first = self._click(app, 1), self._click(app, 0)
+        self._scripted(app, [second, first])
+        self.assertEqual(app.run(), 0)
+        self.assertEqual(app.transactions.selected, 0)
+
+    def test_ctrl_click_marks_and_wheel_scrolls(self) -> None:
+        app = self._app()
+        first = self._click(app, 0, "ctrl-left")
+        sweep = [self._click(app, 1, "ctrl-drag-left"), self._click(app, 2, "ctrl-drag-left")]
+        wheel = f"mouse:wheel-down:{app.layout().list_x + 1}:6"
+        self._scripted(app, [first, *sweep, wheel])
+        self.assertEqual(app.run(), 0)
+        self.assertEqual(len(app.marks), 3)
+        self.assertEqual(app.transactions.selected, len(app.transactions.rows) - 1)
+
+    def test_wheel_over_tree_moves_tree(self) -> None:
+        app = self._app()
+        self._scripted(app, ["mouse:wheel-down:3:6"])
+        self.assertEqual(app.run(), 0)
+        self.assertGreater(app.tree.selected, 0)
+
+    def test_footer_click_triggers_key(self) -> None:
+        app = self._app()
+        start, _end, _key = next(
+            item for item in keys.footer_hits(KEYS_HINT, app.screen.cols) if item[2] == "t"
+        )
+        self._scripted(app, [f"mouse:left:{start + 1}:{app.screen.rows}"])
+        self.assertEqual(app.run(), 0)
+        self.assertIn("支出排行", app.status)
+
+    def test_space_and_esc_toggle_marks(self) -> None:
+        code, _output, app = self._run(["down", " ", "esc", " ", "q"])
+        self.assertEqual(code, 0)
+        self.assertEqual(len(app.marks), 1)
+
+    def test_batch_tag_selected(self) -> None:
+        app = self._app()
+        mark = self._click(app, 1, "ctrl-left")
+        self._scripted(app, [mark, "b", "2", "报销,工作"])
+        self.assertEqual(app.run(), 0)
+        text = self.ledger.read_text(encoding="utf-8")
+        self.assertIn("#报销", text)
+        self.assertIn("#工作", text)
+        self.assertIn("已给 1 笔加上", app.status)
+        self.assertEqual(app.marks, set())
+
+    def test_batch_delete_creates_backup(self) -> None:
+        app = self._app()
+        mark = self._click(app, 1, "ctrl-left")
+        self._scripted(app, [mark, "b", "4", "y"])
+        self.assertEqual(app.run(), 0)
+        self.assertNotIn("外卖", self.ledger.read_text(encoding="utf-8"))
+        backups = list(Path(self._tmp.name).glob("*.bak"))
+        self.assertEqual(len(backups), 1)
+        self.assertIn("外卖", backups[0].read_text(encoding="utf-8"))
+
+    def test_batch_export_writes_csv(self) -> None:
+        target = Path(self._tmp.name) / "导出.csv"
+        app = self._app()
+        mark = self._click(app, 1, "ctrl-left")
+        self._scripted(app, [mark, "b", "3", str(target)])
+        self.assertEqual(app.run(), 0)
+        self.assertTrue(target.exists())
+        self.assertIn("已导出", app.status)
+
+    def test_batch_summary_status(self) -> None:
+        app = self._app()
+        mark = self._click(app, 1, "ctrl-left")
+        self._scripted(app, [mark, "b", "1"])
+        self.assertEqual(app.run(), 0)
+        self.assertIn("收支合计", app.status)
+        self.assertIn("50.00", app.status)
+
+    def test_delete_cancelled_without_confirm(self) -> None:
+        app = self._app()
+        mark = self._click(app, 1, "ctrl-left")
+        self._scripted(app, [mark, "b", "4", "n"])
+        self.assertEqual(app.run(), 0)
+        self.assertIn("外卖", self.ledger.read_text(encoding="utf-8"))
+        self.assertEqual(app.status, "已取消删除")
+
+    def test_generated_rows_are_marked(self) -> None:
+        path = Path(self._tmp.name) / "定期.knot"
+        path.write_text(RECUR_LEDGER, encoding="utf-8")
+        out = io.StringIO()
+        app = App(path, keys.KeySource(["q"]), out)
+        self.assertEqual(app.run(), 0)
+        self.assertTrue(any("⟳" in row for row in app.transactions.rows))
+
     def test_line_budget(self) -> None:
-        """TUI 模块总行数 SHOULD ≤ 800（开发文档 9.4）。"""
+        """TUI 模块总行数 SHOULD ≤ 1500（开发文档 9.4；0.8.0 起含鼠标与批量操作）。"""
         root = Path(__file__).resolve().parents[1] / "src" / "knot" / "tui"
         total = 0
         for path in root.rglob("*.py"):
             total += len(path.read_text(encoding="utf-8").splitlines())
-        self.assertLessEqual(total, 800, f"TUI 代码 {total} 行，超出预算")
+        self.assertLessEqual(total, 1500, f"TUI 代码 {total} 行，超出预算")
 
 
 if __name__ == "__main__":

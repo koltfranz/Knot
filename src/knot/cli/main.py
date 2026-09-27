@@ -12,12 +12,16 @@ from knot.cli.commands import (
     budget,
     chart,
     check,
+    create,
+    demo,
+    doctor,
     fmt,
     holdings,
     import_,
     init,
     menu,
     normalize,
+    open_,
     reconcile,
     recur,
     report,
@@ -45,9 +49,13 @@ COMMANDS = (
     alias,
     normalize,
     init,
+    create,
+    open_,
     serve,
     tui,
     menu,
+    demo,
+    doctor,
 )
 
 
@@ -64,7 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--补全",
         "--completion",
         dest="completion",
-        choices=["bash", "zsh", "fish"],
+        choices=["bash", "zsh", "fish", "powershell", "pwsh"],
         help="输出 shell 补全脚本",
     )
     parser.add_argument("--version", action="version", version=f"knot {__version__}")

@@ -81,6 +81,11 @@ def _jsonable(value):
     return value
 
 
+def overview_text(book) -> str:
+    """概况文本：`knot open` 在非交互终端下复用。"""
+    return render_summary(book.summary())
+
+
 def run(args) -> int:
     result, book, diags = load_book(Path(args.ledger))
     if abort_on_errors(diags):

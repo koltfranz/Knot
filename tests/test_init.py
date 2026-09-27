@@ -8,8 +8,30 @@ from pathlib import Path
 
 from knot.cli.main import main
 from knot.core.loader import load_book
-from knot.core.scaffold import ROOTS_TO_OPEN, ScaffoldOptions, create_ledger
+from knot.core.scaffold import (
+    ROOTS_TO_OPEN,
+    SAMPLE_HEADER,
+    ScaffoldOptions,
+    create_ledger,
+)
 from knot.core.width import str_width
+
+
+def uncommented_sample(directory: Path) -> str:
+    """把年份文件里的示例段还原为可执行内容（供测试校验示例确实合法）。"""
+    lines = (directory / "2026.knot").read_text(encoding="utf-8").splitlines()
+    header = lines.index(SAMPLE_HEADER)
+    live = lines[:header]
+    sample = []
+    for line in lines[header + 1 :]:
+        if line.startswith(";; "):
+            continue
+        if line.startswith("; "):
+            sample.append(line[2:])
+        elif line == ";":
+            sample.append("")
+    prefix = ['option "operating_currency" "CNY"', 'option "strict" "警告"', ""]
+    return "\n".join([*prefix, *live, *sample]) + "\n"
 
 
 class ScaffoldTest(unittest.TestCase):
@@ -47,7 +69,10 @@ class ScaffoldTest(unittest.TestCase):
             text = (directory / "main.knot").read_text(encoding="utf-8")
             self.assertIn("option", text)
             self.assertIn("include", text)
-            self.assertIn("open", (directory / "2026.knot").read_text(encoding="utf-8"))
+            year_text = (directory / "2026.knot").read_text(encoding="utf-8")
+            self.assertIn("open", year_text)
+            self.assertIn("; 2026-01-01 recur", year_text)
+            self.assertIn("budget monthly", year_text)
 
             _result, _book, diags = load_book(directory / "main.knot")
             self.assertEqual([d for d in diags if d.level == "error"], [])
@@ -57,10 +82,38 @@ class ScaffoldTest(unittest.TestCase):
             directory = Path(tmp)
             create_ledger(ScaffoldOptions(directory=directory, year=2026))
             lines = (directory / "2026.knot").read_text(encoding="utf-8").splitlines()
-            openings = [line for line in lines if "开立" in line and "CNY" in line]
+            openings = [
+                line
+                for line in lines
+                if not line.lstrip().startswith(";") and "开立" in line and "CNY" in line
+            ]
             self.assertEqual(len(openings), len(ROOTS_TO_OPEN))
             columns = {str_width(line[: line.index("CNY")]) for line in openings}
             self.assertEqual(len(columns), 1)
+
+    def test_sample_block_present(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            create_ledger(ScaffoldOptions(directory=directory, year=2026))
+            text = (directory / "2026.knot").read_text(encoding="utf-8")
+            self.assertIn(SAMPLE_HEADER, text)
+            self.assertIn('; 2026-01-11 * "超市"', text)
+            self.assertIn('; 2026-01-01 定期 "monthly" "房租"', text)
+            self.assertIn("; 2026-01-01 预算 每月 费用:餐饮", text)
+            self.assertIn(";; 余额断言", text)
+
+    def test_sample_block_is_valid_when_uncommented(self) -> None:
+        """示例段必须是「删掉注释就能跑」的：解注释后校验零错误。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp) / "账本"
+            create_ledger(ScaffoldOptions(directory=directory, year=2026))
+            ledger = Path(tmp) / "解注释.knot"
+            ledger.write_text(uncommented_sample(directory), encoding="utf-8", newline="")
+
+            _result, book, diags = load_book(ledger)
+            errors = [d.message for d in diags if d.level == "error"]
+            self.assertEqual(errors, [])
+            self.assertGreater(len(book.transactions), 5)
 
 
 class InitCommandTest(unittest.TestCase):
@@ -110,6 +163,7 @@ class InitCommandTest(unittest.TestCase):
         code, output = self._run("菜单")
         self.assertEqual(code, 0)
         self.assertIn("记一笔", output)
+        self.assertIn("示例账本", output)
         self.assertIn("退出", output)
 
 

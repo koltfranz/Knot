@@ -6,6 +6,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
+from knot.core.loader import load_book
 from knot.core.model import Amount, Flag, Posting, Transaction
 from knot.core.writer import Edit, apply_edits, insert_transaction, render_transaction
 
@@ -104,6 +105,40 @@ class WriterTest(unittest.TestCase):
             insert_transaction(path, make_tx(date(2026, 2, 15), "新建"))
             self.assertTrue(path.exists())
             self.assertIn("2026-02-15", path.read_text(encoding="utf-8"))
+
+    def test_insert_without_trailing_newline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "main.knot"
+            path.write_text(
+                '2026-01-10 "早饭"\n  费用:餐饮  8.00 CNY  @ 资产:现金',
+                encoding="utf-8",
+                newline="",
+            )
+            insert_transaction(path, make_tx(date(2026, 2, 15), "插入"))
+            text = path.read_text(encoding="utf-8")
+            self.assertIn('@ 资产:现金\n\n2026-02-15 "插入"', text)
+            _result, _book, diags = load_book(path)
+            self.assertEqual([d for d in diags if d.level == "error"], [])
+
+    def test_insert_same_date_twice(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._write(tmp)
+            insert_transaction(path, make_tx(date(2026, 2, 15), "第一笔"))
+            insert_transaction(path, make_tx(date(2026, 2, 15), "第二笔"))
+            text = path.read_text(encoding="utf-8")
+            self.assertLess(text.index("第一笔"), text.index("第二笔"))
+            self.assertNotIn("\n\n\n", text)
+            _result, _book, diags = load_book(path)
+            self.assertEqual([d for d in diags if d.level == "error"], [])
+
+    def test_insert_into_empty_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "空.knot"
+            path.write_text("", encoding="utf-8", newline="")
+            insert_transaction(path, make_tx(date(2026, 2, 15), "首笔"))
+            self.assertIn("2026-02-15", path.read_text(encoding="utf-8"))
+            _result, _book, diags = load_book(path)
+            self.assertEqual([d for d in diags if d.level == "error"], [])
 
     def test_render_alignment_and_generated_skipped(self) -> None:
         tx = Transaction(

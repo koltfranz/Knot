@@ -45,3 +45,47 @@ jobs:
           python knot.pyz --账本 /tmp/账本/main.knot 记 38 餐饮 -f 现金 -n 午饭
           python knot.pyz --账本 /tmp/账本/main.knot 检查 --静默
           python knot.pyz --账本 /tmp/账本/main.knot 报 收支
+      - name: 示例账本冒烟（含 zipapp 内资源读取）
+        run: |
+          python knot.pyz 示例 /tmp/演示
+          python knot.pyz --账本 /tmp/演示/main.knot 检查 --静默
+          python knot.pyz --账本 /tmp/演示/main.knot 图 现金流 -o /tmp/瀑布.svg
+          python knot.pyz --账本 /tmp/演示/main.knot 持仓
+
+  installers:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: 安装/卸载脚本语法
+        if: runner.os != 'Windows'
+        run: |
+          sh -n 安装.sh
+          sh -n 卸载.sh
+      - name: 安装冒烟（macOS / Linux）
+        if: runner.os != 'Windows'
+        run: |
+          sh ./安装.sh --prefix "$RUNNER_TEMP/knot" --no-path -y
+          "$RUNNER_TEMP/knot/venv/bin/knot" --version
+          "$RUNNER_TEMP/knot/venv/bin/knot" 自检
+          sh ./卸载.sh --prefix "$RUNNER_TEMP/knot" --dry-run -y
+          test -d "$RUNNER_TEMP/knot"
+          sh ./卸载.sh --prefix "$RUNNER_TEMP/knot" -y
+          test ! -d "$RUNNER_TEMP/knot"
+      - name: 安装冒烟（Windows / PowerShell）
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          .\安装.ps1 -InstallDir "$env:RUNNER_TEMP\Knot" -NoPath -Yes
+          & "$env:RUNNER_TEMP\Knot\bin\knot.ps1" --version
+          & "$env:RUNNER_TEMP\Knot\bin\knot.cmd" 自检
+          .\卸载.ps1 -InstallDir "$env:RUNNER_TEMP\Knot" -DryRun -Yes
+          if (-not (Test-Path "$env:RUNNER_TEMP\Knot")) { throw "试运行不应删除安装目录" }
+          .\卸载.ps1 -InstallDir "$env:RUNNER_TEMP\Knot" -Yes
+          if (Test-Path "$env:RUNNER_TEMP\Knot") { throw "安装目录未被清理" }
