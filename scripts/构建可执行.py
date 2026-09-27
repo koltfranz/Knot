@@ -17,7 +17,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main() -> int:
     sys.path.insert(0, str(ROOT / "src"))
+    from knot.core.console import setup_console
     from knot.version import __version__
+
+    setup_console()
 
     output = ROOT / "dist" / "可执行"
     output.mkdir(parents=True, exist_ok=True)
@@ -32,10 +35,8 @@ def main() -> int:
         "--standalone",
         "--onefile",
         "--assume-yes-for-downloads",
-        "--output-dir",
-        str(output),
-        "--output-filename",
-        target.name,
+        f"--output-dir={output}",
+        f"--output-filename={target.name}",
         "--include-package-data=knot",
         "--nofollow-import-to=pytest,unittest",
         str(ROOT / "src" / "knot" / "__main__.py"),

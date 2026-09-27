@@ -10,6 +10,10 @@ import sys
 import time
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(ROOT / "src"))
+
 ACCOUNTS = [
     "费用:餐饮:早餐",
     "费用:餐饮:午餐",
@@ -99,6 +103,9 @@ def benchmark(ledger: Path) -> dict:
 
 
 def main(argv: list[str]) -> int:
+    from knot.core.console import setup_console
+
+    setup_console()
     count = int(argv[0]) if argv else 30000
     directory = Path(argv[1]) if len(argv) > 1 else Path("dist") / "性能"
     directory.mkdir(parents=True, exist_ok=True)

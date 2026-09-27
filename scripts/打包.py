@@ -15,7 +15,10 @@ def main() -> int:
     dist.mkdir(exist_ok=True)
 
     sys.path.insert(0, str(source))
+    from knot.core.console import setup_console
     from knot.version import __version__
+
+    setup_console()
 
     target = dist / f"knot-{__version__}.pyz"
     zipapp.create_archive(

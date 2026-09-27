@@ -17,6 +17,7 @@ END = "<!-- keywords:end -->"
 
 sys.path.insert(0, str(ROOT / "src"))
 
+from knot.core.console import setup_console  # noqa: E402
 from knot.core.keywords import (  # noqa: E402
     DIRECTIVE_NOTES,
     DIRECTIVES,
@@ -105,6 +106,7 @@ def apply_to_document(text: str, generated: str) -> str:
 
 
 def main(argv: list[str]) -> int:
+    setup_console()
     generated = render_tables()
     current = DOC.read_text(encoding="utf-8")
     expected = apply_to_document(current, generated)
