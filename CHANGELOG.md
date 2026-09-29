@@ -4,6 +4,25 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.8.2] - 2026-09-29
+
+补丁版：只修缺陷，不新增功能（本版从 v0.8.1 拉出维护分支发布，
+不含 main 上尚未发布的一键体验示例账本）。
+
+### Fixed
+
+- Release 工作流只上传工作流制品、**没有把文件挂到 Release 上**：发布页长期没有任何可下载文件，
+  与文档里「Release 附件里的 `knot.pyz`」不符。现在 `zipapp` 与三平台 `nuitka` 作业都会把产物
+  `gh release upload` 到对应 Release（Release 不存在时按 `docs/发布说明/<tag>.md` 自动创建），
+  并声明 `permissions: contents: write`、支持 `workflow_dispatch` 手动重跑
+- Windows 的 Nuitka 构建挂死 6 小时被取消（三平台可执行因此从未产出）：Nuitka 调用的
+  `depends.exe`（Dependency Walker）在 CI 上不退出，现改用 `--windows-dependency-tool=pefile`
+
+### Notes
+
+- 已为 v0.8.0 / v0.8.1 补挂由各自 tag 构建的 `knot.pyz` 附件（`--version` 分别显示 0.8.0 / 0.8.1）
+- 测试 321 项；CI 与 Release 流水线自本版起可自动产出并挂载发布物
+
 ## [0.8.1] - 2026-09-27
 
 补丁版：只修缺陷，不新增功能。
