@@ -39,8 +39,11 @@ def main() -> int:
         f"--output-filename={target.name}",
         "--include-package-data=knot",
         "--nofollow-import-to=pytest,unittest",
-        str(ROOT / "src" / "knot" / "__main__.py"),
     ]
+    if system == "windows":
+        # depends.exe（Dependency Walker）在 CI 上会挂死，改用 pefile 解析依赖
+        command.append("--windows-dependency-tool=pefile")
+    command.append(str(ROOT / "src" / "knot" / "__main__.py"))
     environment = dict(os.environ, PYTHONUTF8="1")
 
     print("执行：", " ".join(command))

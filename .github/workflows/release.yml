@@ -3,6 +3,10 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   zipapp:
@@ -18,6 +22,21 @@ jobs:
         with:
           name: knot-py
           path: dist/knot.pyz
+      - name: 上传到 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NOTES="docs/发布说明/${GITHUB_REF_NAME}.md"
+          if ! gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            if [ -f "$NOTES" ]; then
+              gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" \
+                --notes-file "$NOTES" --verify-tag || true
+            else
+              gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" \
+                --generate-notes --verify-tag || true
+            fi
+          fi
+          gh release upload "${GITHUB_REF_NAME}" dist/knot.pyz --clobber
 
   nuitka:
     # Nuitka 不支持交叉编译：三平台各自构建（开发文档 15.4）
@@ -41,3 +60,16 @@ jobs:
         with:
           name: knot-${{ matrix.os }}
           path: dist/可执行/*
+      - name: 上传到 Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NOTES="docs/发布说明/${GITHUB_REF_NAME}.md"
+          if ! gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            if [ -f "$NOTES" ]; then
+              gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" \
+                --notes-file "$NOTES" --verify-tag || true
+            fi
+          fi
+          gh release upload "${GITHUB_REF_NAME}" dist/可执行/* --clobber

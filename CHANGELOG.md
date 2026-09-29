@@ -12,6 +12,16 @@
   复制内置示例账本（已存在则跳过）后直接进入终端界面
 - 终端界面状态栏常驻操作提示（单击选择 / Ctrl+单击多选 / 滚轮滚动 / 空格标记 / b 批量菜单）
 
+### Fixed
+
+- Release 工作流只上传工作流制品、**没有把文件挂到 Release 上**：发布页一直是空的，
+  与文档里「Release 附件里的 `knot.pyz`」不符。现在 `zipapp` 与三平台 `nuitka` 作业都会
+  把产物 `gh release upload` 到对应 Release（Release 不存在时按 `docs/发布说明/<tag>.md` 自动创建），
+  并声明 `permissions: contents: write`、支持 `workflow_dispatch` 手动重跑
+- Windows 的 Nuitka 构建会挂死 6 小时被取消：Nuitka 调用的 `depends.exe`（Dependency Walker）
+  在 CI 上不退出。现在 Windows 改用 `--windows-dependency-tool=pefile` 解析依赖
+- 已为 v0.8.0 / v0.8.1 补挂 `knot.pyz` 附件（由各自 tag 构建，`--version` 分别显示 0.8.0 / 0.8.1）
+
 ## [0.8.1] - 2026-09-27
 
 补丁版：只修缺陷，不新增功能。
