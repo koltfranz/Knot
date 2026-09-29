@@ -9,6 +9,8 @@ from knot.core.loader import load_book
 from knot.core.normalize import KnotError
 from knot.tui import term
 
+HINT = "终端界面：单击选择 · Ctrl+单击多选 · 滚轮滚动 · 空格标记 · b 批量菜单 · ? 帮助 · q 退出"
+
 
 def add_parser(sub) -> None:
     p = sub.add_parser("open", aliases=["打开", "开"], help="打开账本（默认进入终端界面）")
@@ -48,17 +50,12 @@ def resolve_ledger(name: str | None, default: str) -> Path:
     raise KnotError(f"未找到账本：{name}；可用 `knot create {name}` 新建")
 
 
-def run(args) -> int:
-    ledger = resolve_ledger(args.名字, args.ledger)
+def launch(ledger: Path) -> int:
+    """校验账本后进入终端界面；非交互终端退回输出概况（open 与 示例 --打开 共用）。"""
     _result, book, diags = load_book(ledger, missing_ok=True)
     if abort_on_errors(diags):
         print(style(f"提示：knot --账本 {ledger} 检查 可查看完整诊断", YELLOW), file=sys.stderr)
         return 1
-
-    if args.web:
-        from knot.cli.main import main as dispatch
-
-        return dispatch(["--账本", str(ledger), "服务", "--打开浏览器"])
 
     if not term.is_tty():
         from knot.cli.commands.report import overview_text
@@ -69,4 +66,16 @@ def run(args) -> int:
 
     from knot.tui.app import run_tui
 
+    print(style(HINT, DIM))
     return run_tui(ledger)
+
+
+def run(args) -> int:
+    ledger = resolve_ledger(args.名字, args.ledger)
+
+    if args.web:
+        from knot.cli.main import main as dispatch
+
+        return dispatch(["--账本", str(ledger), "服务", "--打开浏览器"])
+
+    return launch(ledger)

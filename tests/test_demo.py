@@ -115,6 +115,16 @@ class DemoCommandTest(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("已存在，跳过", output)
 
+    def test_demo_open_flag(self) -> None:
+        """`示例 --打开`：复制后直接打开；非交互终端退回输出概况。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "演示账本"
+            code, output = self._run("示例", str(target), "--打开")
+            self.assertEqual(code, 0)
+            self.assertTrue((target / "main.knot").exists())
+            self.assertIn("交易数：", output)
+            self.assertIn("不是交互式终端", output)
+
     def test_printed_commands_are_runnable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "演示账本"

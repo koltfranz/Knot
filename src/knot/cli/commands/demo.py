@@ -17,6 +17,13 @@ def add_parser(sub) -> None:
         "目录", nargs="?", default=DEMO_NAME, metavar="目录", help=f"目标目录，默认 {DEMO_NAME}"
     )
     p.add_argument("--覆盖", dest="overwrite", action="store_true", help="已存在的文件也覆盖")
+    p.add_argument(
+        "--打开",
+        "--open",
+        dest="open_tui",
+        action="store_true",
+        help="复制后直接打开（终端界面；非交互终端输出概况）",
+    )
     p.set_defaults(func=run)
 
 
@@ -85,8 +92,15 @@ def run(args) -> int:
         print(style(f"已生成：{path}", GREEN))
     for path in skipped:
         print(style(f"已存在，跳过：{path}（加 --覆盖 可重写）", YELLOW))
+
+    if args.open_tui:
+        from knot.cli.commands.open_ import launch
+
+        return launch(target / "main.knot")
+
     print()
     print(style(f"示例账本已就绪：{target / 'main.knot'}", GREEN))
+    print(style("一键打开：knot 示例 --打开（复制后直接进入终端界面）", DIM))
     print(style("试试这些命令：", DIM))
     for command in demo_commands(target):
         print(f"  {command}")

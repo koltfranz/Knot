@@ -17,12 +17,15 @@ LAUNCHERS = {
     "网页.sh": "serve --open",
     "界面.ps1": "tui",
     "网页.ps1": "serve --open",
+    "演示.bat": "demo --open",
+    "演示.ps1": "demo --open",
+    "演示.sh": "demo --open",
 }
 
 FORWARDERS = {".bat": "knot.bat", ".sh": "knot.sh", ".ps1": "knot.ps1"}
 
-BAT_FILES = ["knot.bat", "界面.bat", "网页.bat"]
-PS1_FILES = ["knot.ps1", "界面.ps1", "网页.ps1"]
+BAT_FILES = ["knot.bat", "界面.bat", "网页.bat", "演示.bat"]
+PS1_FILES = ["knot.ps1", "界面.ps1", "网页.ps1", "演示.ps1"]
 
 
 def parse(argv: list[str]):
@@ -58,7 +61,7 @@ class LauncherFileTest(unittest.TestCase):
             self.assertNotRegex(code, r"[\u4e00-\u9fff]", f"{name} 的命令行不应含中文")
 
     def test_ps1_launchers_use_ascii_commands(self) -> None:
-        for name in ("界面.ps1", "网页.ps1"):
+        for name in ("界面.ps1", "网页.ps1", "演示.ps1"):
             text = (ROOT / name).read_text(encoding="utf-8-sig")
             command_line = next(
                 line
@@ -71,7 +74,7 @@ class LauncherFileTest(unittest.TestCase):
         for name in (n for n in LAUNCHERS if n.endswith(".sh")):
             text = (ROOT / name).read_text(encoding="utf-8")
             command_line = next(line for line in text.splitlines() if line.startswith("exec "))
-            self.assertRegex(command_line, r"^exec .* (tui|serve --open)$", name)
+            self.assertRegex(command_line, r"^exec .* (tui|serve --open|demo --open)$", name)
 
     def test_bat_files_use_crlf(self) -> None:
         for name in BAT_FILES:

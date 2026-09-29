@@ -69,7 +69,7 @@ class App:
         self.tree = tree_widget.TreeView(height=max(4, rows - 8))
         self.form: Form | None = None
         self.mode = "浏览"
-        self.status = "就绪"
+        self.status = "就绪 · 鼠标：单击选择 / Ctrl+单击多选 / 滚轮滚动（空格标记、b 批量菜单）"
         self.sort_key = "日期"
         self.filter_account: str | None = None
         self.query = ""
