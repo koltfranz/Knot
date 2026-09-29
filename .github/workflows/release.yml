@@ -72,4 +72,6 @@ jobs:
                 --notes-file "$NOTES" --verify-tag || true
             fi
           fi
-          gh release upload "${GITHUB_REF_NAME}" dist/可执行/* --clobber
+          # 只上传文件：Nuitka 的 *.dist 中间目录不是附件
+          gh release upload "${GITHUB_REF_NAME}" \
+            $(find dist/可执行 -maxdepth 1 -type f) --clobber
