@@ -17,7 +17,8 @@
 - Release 工作流只上传工作流制品、**没有把文件挂到 Release 上**：发布页一直是空的，
   与文档里「Release 附件里的 `knot.pyz`」不符。现在 `zipapp` 与三平台 `nuitka` 作业都会
   把产物 `gh release upload` 到对应 Release（Release 不存在时按 `docs/发布说明/<tag>.md` 自动创建），
-  并声明 `permissions: contents: write`、支持 `workflow_dispatch` 手动重跑
+  并声明 `permissions: contents: write`、支持 `workflow_dispatch` 手动重跑；
+  上传时只取可执行文件本身（`*.dist` 中间目录不是附件，首次实跑时因此在 `gh release upload` 上报错）
 - Windows 的 Nuitka 构建会挂死 6 小时被取消：Nuitka 调用的 `depends.exe`（Dependency Walker）
   在 CI 上不退出。现在 Windows 改用 `--windows-dependency-tool=pefile` 解析依赖
 - 已为 v0.8.0 / v0.8.1 补挂 `knot.pyz` 附件（由各自 tag 构建，`--version` 分别显示 0.8.0 / 0.8.1）
