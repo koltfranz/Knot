@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -169,6 +170,80 @@ class LedgerHomeTest(unittest.TestCase):
             ledger = launch.ensure_demo(Path(tmp))
             self.assertTrue(ledger.exists())
             self.assertEqual(ledger.parent.name, "演示账本")
+
+
+class NoConsoleTest(unittest.TestCase):
+    """回归：pythonw（无控制台）下 sys.stdin/stdout/stderr 为 None，入口 MUST 不能崩。"""
+
+    def setUp(self) -> None:
+        self._saved = (sys.stdin, sys.stdout, sys.stderr)
+        sys.stdin = sys.stdout = sys.stderr = None
+
+    def tearDown(self) -> None:
+        sys.stdin, sys.stdout, sys.stderr = self._saved
+
+    def test_stream_is_tty_handles_none(self) -> None:
+        self.assertFalse(entry.stream_is_tty(None))
+        self.assertFalse(entry.stream_is_tty(object()))
+        self.assertFalse(entry.in_terminal())
+
+    def test_choose_falls_back_to_default(self) -> None:
+        with mock.patch.object(entry, "_pick_dialog", return_value=None):
+            self.assertEqual(entry.choose(), entry.DEFAULT_CHOICE)
+
+    def test_report_error_does_not_raise(self) -> None:
+        with mock.patch.object(entry, "_message_box", return_value=False):
+            entry.report_error("测试")  # 不应抛异常
+
+    def test_tui_interface_spawns_window(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "账本"
+            with (
+                mock.patch.object(entry, "spawn_tui", return_value=True) as spawn,
+                redirect_stdout(io.StringIO()),
+            ):
+                code = main(["入口", "--界面", "终端", "--账本目录", str(home)])
+            self.assertEqual(code, 0)
+            self.assertTrue(spawn.called)
+            self.assertTrue((home / "main.knot").exists())
+
+    def test_unexpected_error_is_reported(self) -> None:
+        with (
+            mock.patch.object(launch, "ensure_ledger", side_effect=RuntimeError("炸了")),
+            mock.patch.object(entry, "report_error") as report,
+            redirect_stdout(io.StringIO()),
+        ):
+            code = main(["入口", "--界面", "浏览器", "--账本目录", "x"])
+        self.assertEqual(code, 1)
+        self.assertTrue(report.called)
+        self.assertIn("RuntimeError", report.call_args[0][0])
+
+
+class StreamOptionsTest(unittest.TestCase):
+    def test_choose_passes_devnull_stdin(self) -> None:
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="demo\n", stderr="")
+        with (
+            mock.patch.object(entry, "_pick_dialog", return_value=lambda: ["fake-dialog"]),
+            mock.patch.object(entry.subprocess, "run", return_value=completed) as run,
+        ):
+            self.assertEqual(entry.choose(), "demo")
+        self.assertEqual(run.call_args.kwargs["stdin"], subprocess.DEVNULL)
+        self.assertEqual(run.call_args.kwargs["encoding"], "utf-8")
+
+    def test_console_executable_prefers_console_python(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            windowless = Path(tmp) / "pythonw.exe"
+            console = Path(tmp) / "python.exe"
+            windowless.write_bytes(b"")
+            console.write_bytes(b"")
+            with (
+                mock.patch.object(entry, "IS_WINDOWS", True),
+                mock.patch.object(entry.sys, "executable", str(windowless)),
+            ):
+                self.assertEqual(entry.console_executable(), str(console))
+
+        with mock.patch.object(entry, "IS_WINDOWS", False):
+            self.assertEqual(entry.console_executable(), entry.sys.executable)
 
 
 class LaunchCommandTest(unittest.TestCase):

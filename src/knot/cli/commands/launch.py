@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from datetime import date
 from pathlib import Path
 
@@ -71,7 +70,8 @@ def ensure_demo(home: Path) -> Path:
 
 
 def _in_terminal() -> bool:
-    return sys.stdin.isatty() and sys.stdout.isatty()
+    """无控制台环境（pythonw）下 sys.stdin/stdout 为 None，必须安全判空。"""
+    return entry.in_terminal()
 
 
 def open_tui(ledger: Path) -> int:
@@ -100,6 +100,14 @@ def open_browser(ledger: Path) -> int:
 
 
 def run(args) -> int:
+    try:
+        return _run(args)
+    except Exception as exc:  # 桌面入口必须把失败告诉用户，而不是静默退出
+        entry.report_error(f"{type(exc).__name__}: {exc}")
+        return 1
+
+
+def _run(args) -> int:
     choice = INTERFACES.get(args.interface) if args.interface else None
     if choice is None:
         choice = entry.choose(timeout=args.timeout)

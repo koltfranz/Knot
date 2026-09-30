@@ -4,6 +4,28 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.9.1] - 2026-09-30
+
+补丁版：修复桌面入口「每个选项都没反应」的问题。
+
+### Fixed
+
+- **桌面入口点了没反应**（Windows 桌面 / 开始菜单图标）：快捷方式以 `pythonw.exe` 启动，
+  此时 `sys.stdin` / `sys.stdout` / `sys.stderr` 都是 `None`，入口里直接调用 `sys.stdin.isatty()`
+  抛 `AttributeError`；而 pythonw 没有 stderr，异常静默消失 —— 表现为「选择窗口能弹出、
+  每个选项点完都没反应」。现在所有标准流访问都先判空（`entry.stream_is_tty` / `entry.in_terminal`）
+- 同一场景下 `console_executable()` 会把 `pythonw.exe` 换回同目录的 `python.exe`，
+  否则入口拉起的终端窗口里没有任何输出、也无法 Ctrl+C 停止
+- 桌面入口的未预期异常不再静默：Windows 下弹消息框给出失败原因（`entry.report_error`），
+  其它平台写 stderr
+- 选择窗口的子进程显式使用 `stdin=DEVNULL` 与 UTF-8 解码（`errors="replace"`），
+  避免无控制台时的句柄与编码问题；Windows 下以 `CREATE_NO_WINDOW` 启动，不闪控制台窗口
+
+### Notes
+
+- 新增「无控制台」回归测试组（`sys.stdin/stdout/stderr` 置为 `None` 后走完入口全流程）
+- 测试 349 项
+
 ## [0.9.0] - 2026-09-29
 
 桌面入口：安装即用，双击一个入口进入界面；仓库里的启动脚本全部下线。

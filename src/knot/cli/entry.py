@@ -4,6 +4,8 @@
 - 不引入任何第三方依赖：Windows 用系统 PowerShell + WinForms，macOS 用 osascript，
   Linux 用 zenity / kdialog；都没有时退回终端菜单（非交互环境直接走默认）。
 - 选择窗口超时（默认 10 秒）由 Python 侧统一控制：超时按默认项（浏览器界面）继续。
+- MUST 支持「无控制台」环境（Windows 桌面快捷方式用 pythonw.exe 启动）：那里
+  `sys.stdin` / `sys.stdout` / `sys.stderr` 都是 None，任何 `.isatty()` 与写流都要先判空。
 """
 
 from __future__ import annotations
@@ -26,6 +28,25 @@ PROMPT = "选择要打开的界面（10 秒后自动进入浏览器界面）"
 TITLE = "结绳 Knot"
 
 WINDOWS_CREATE_NEW_CONSOLE = 0x00000010
+WINDOWS_CREATE_NO_WINDOW = 0x08000000
+MB_ICONERROR = 0x10
+
+
+# ---------- 标准流安全判空（pythonw 下为 None） ----------
+
+
+def stream_is_tty(stream) -> bool:
+    if stream is None:
+        return False
+    try:
+        return bool(stream.isatty())
+    except (AttributeError, ValueError, OSError):
+        return False
+
+
+def in_terminal() -> bool:
+    """当前是否处于交互式终端；无控制台（pythonw）时恒为 False。"""
+    return stream_is_tty(sys.stdin) and stream_is_tty(sys.stdout)
 
 
 # ---------- 选择窗口 ----------
@@ -35,15 +56,25 @@ def choose(timeout: float = 10.0) -> str:
     """弹出选择窗口 → browser / tui / demo / quit；超时或无法弹窗时返回默认项。"""
     dialog = _pick_dialog()
     if dialog is None:
-        return _tty_menu() if sys.stdin.isatty() and sys.stdout.isatty() else DEFAULT_CHOICE
+        return _tty_menu() if in_terminal() else DEFAULT_CHOICE
     command = dialog()
+    options: dict = {
+        "capture_output": True,
+        "text": True,
+        "encoding": "utf-8",
+        "errors": "replace",
+        "stdin": subprocess.DEVNULL,
+        "timeout": timeout,
+        "check": False,
+    }
+    if IS_WINDOWS:
+        # 无控制台时不给子进程弹控制台窗口
+        options["creationflags"] = WINDOWS_CREATE_NO_WINDOW
     try:
-        result = subprocess.run(
-            command, capture_output=True, text=True, timeout=timeout, check=False
-        )
+        result = subprocess.run(command, **options)
     except subprocess.TimeoutExpired:
         return DEFAULT_CHOICE
-    except OSError:
+    except (OSError, ValueError):
         return DEFAULT_CHOICE
     answer = (result.stdout or "").strip().splitlines()
     if not answer:
@@ -233,7 +264,16 @@ def _linux_terminal() -> list[str] | None:
 
 
 def console_executable() -> str:
-    """带控制台的解释器：用于在新窗口里跑界面（能看到输出、可 Ctrl+C 停止）。"""
+    """带控制台的解释器：用于在新窗口里跑界面（能看到输出、可 Ctrl+C 停止）。
+
+    pythonw.exe 启动时 sys.executable 指向 pythonw，这里换回同目录的 python.exe。
+    """
+    if IS_WINDOWS:
+        current = Path(sys.executable)
+        if current.name.lower() == "pythonw.exe":
+            console = current.with_name("python.exe")
+            if console.exists():
+                return str(console)
     return sys.executable
 
 
@@ -244,6 +284,30 @@ def windowless_executable() -> str:
         if windowless.exists():
             return str(windowless)
     return sys.executable
+
+
+def _message_box(message: str) -> bool:
+    if not IS_WINDOWS:
+        return False
+    try:
+        import ctypes
+
+        ctypes.windll.user32.MessageBoxW(None, message, TITLE, MB_ICONERROR)
+    except (OSError, AttributeError, ValueError):
+        return False
+    return True
+
+
+def report_error(message: str) -> None:
+    """把失败原因告诉用户：Windows 弹消息框（pythonw 下没有 stderr），否则写 stderr。"""
+    text = f"{TITLE} 启动失败：\n\n{message}"
+    if _message_box(text):
+        return
+    try:
+        if sys.stderr is not None:
+            print(text, file=sys.stderr)
+    except (ValueError, OSError):
+        pass
 
 
 def label_of(choice: str) -> str:
