@@ -43,6 +43,10 @@
 
 - Release 上传附件时会把 Nuitka 的 `*.dist` 中间目录也交给 `gh release upload` 而报错，
   现在只上传可执行文件本身
+- 发布流水线的 Nuitka 作业加 `timeout-minutes`（30 分钟），并移出 Windows：
+  Nuitka 在 Windows 上会调用 `depends.exe` 探测 DLL 依赖，在无交互运行器上会挂死
+  （v0.8.1、v0.8.2 两次各跑满 6 小时被取消，Nuitka 4.x 已移除 `--windows-dependency-tool` 选项）。
+  Windows 用户使用免安装的 `knot.pyz` 或 `安装.ps1`
 
 ### Notes
 

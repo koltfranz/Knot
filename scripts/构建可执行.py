@@ -16,6 +16,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main() -> int:
+    if platform.system() == "Windows":
+        print(
+            "提示：Nuitka 在 Windows 上会调用 depends.exe（Dependency Walker）探测 DLL 依赖，"
+            "在无交互环境（如 CI）中可能长时间无响应，因此本仓库的发布流水线只构建 "
+            "Linux / macOS 可执行程序；Windows 请使用免安装的 knot.pyz，或用 安装.ps1 安装。"
+        )
     sys.path.insert(0, str(ROOT / "src"))
     from knot.core.console import setup_console
     from knot.version import __version__
@@ -40,9 +46,6 @@ def main() -> int:
         "--include-package-data=knot",
         "--nofollow-import-to=pytest,unittest",
     ]
-    if system == "windows":
-        # depends.exe（Dependency Walker）在 CI 上会挂死，改用 pefile 解析依赖
-        command.append("--windows-dependency-tool=pefile")
     command.append(str(ROOT / "src" / "knot" / "__main__.py"))
     environment = dict(os.environ, PYTHONUTF8="1")
 

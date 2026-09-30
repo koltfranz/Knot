@@ -11,6 +11,7 @@ permissions:
 jobs:
   zipapp:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -39,11 +40,14 @@ jobs:
           gh release upload "${GITHUB_REF_NAME}" dist/knot.pyz --clobber
 
   nuitka:
-    # Nuitka 不支持交叉编译：三平台各自构建（开发文档 15.4）
+    # Nuitka 不支持交叉编译：各平台各自构建（开发文档 15.4）
+    # Windows 未纳入矩阵：Nuitka 在 Windows 上会调用 depends.exe 探测 DLL 依赖，
+    # 在无交互运行器上会挂死（曾连续两次跑满 6 小时被取消）；Windows 请用 knot.pyz 或 安装.ps1
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
