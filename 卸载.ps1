@@ -19,6 +19,7 @@ param(
 $InstallDir = [System.IO.Path]::GetFullPath($InstallDir)
 $binDir = Join-Path $InstallDir "bin"
 $infoPath = Join-Path $InstallDir "install.json"
+$info = $null
 
 if (Test-Path -LiteralPath $infoPath) {
     try {
@@ -86,6 +87,22 @@ if (Test-Path -LiteralPath $InstallDir) {
     }
 } else {
     Write-Host "安装目录不存在，跳过：$InstallDir"
+}
+
+$entryPaths = @()
+if ($info -and $info.入口) {
+    $entryPaths = @($info.入口)
+} else {
+    $entryPaths = @(
+        (Join-Path ([Environment]::GetFolderPath("Desktop")) "结绳 Knot.lnk"),
+        (Join-Path ([Environment]::GetFolderPath("Programs")) "结绳 Knot.lnk")
+    )
+}
+foreach ($shortcutPath in $entryPaths) {
+    if (Test-Path -LiteralPath $shortcutPath) {
+        Remove-Item -LiteralPath $shortcutPath -Force
+        Write-Host "已删除入口：$shortcutPath"
+    }
 }
 
 Write-Host "卸载完成。账本文件未受影响。"

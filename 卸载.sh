@@ -117,6 +117,20 @@ if [ -f "$PROFILE" ] && grep -qF "$MARKER_START" "$PROFILE"; then
     echo "已移除 $PROFILE 中的 PATH 标记块"
 fi
 
+if [ "$(uname -s)" = "Darwin" ]; then
+    APP_DIR="${HOME}/Applications/结绳 Knot.app"
+    if [ -d "$APP_DIR" ]; then
+        rm -rf "$APP_DIR"
+        echo "已删除入口：$APP_DIR"
+    fi
+else
+    DESKTOP_FILE="${HOME}/.local/share/applications/knot.desktop"
+    if [ -f "$DESKTOP_FILE" ]; then
+        rm -f "$DESKTOP_FILE"
+        echo "已删除入口：$DESKTOP_FILE"
+    fi
+fi
+
 if [ -d "$PREFIX" ]; then
     rm -rf "$PREFIX"
     echo "已删除安装目录：$PREFIX"

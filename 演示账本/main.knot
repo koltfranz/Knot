@@ -1,0 +1,11 @@
+; 结绳 Knot · 演示账本（覆盖全部语法与功能，可直接用来试命令）
+; 由 scripts 生成？不：本目录随包分发，`knot 示例` 可直接复制
+
+option "operating_currency" "CNY"
+option "default_asset"      "资产:现金"
+option "default_income"     "收入:其他"
+option "strict"             "警告"
+
+include "别名.knot"
+include "规则/分类规则.knot"
+include "20*.knot"

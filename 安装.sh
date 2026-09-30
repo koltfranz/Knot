@@ -137,6 +137,47 @@ else
     echo "按 --no-path 跳过 PATH 修改；可直接调用 $BIN_DIR/knot"
 fi
 
+install_entry() {
+    if [ "$(uname -s)" = "Darwin" ]; then
+        APP_DIR="${HOME}/Applications/结绳 Knot.app"
+        mkdir -p "$APP_DIR/Contents/MacOS"
+        cat > "$APP_DIR/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>结绳 Knot</string>
+  <key>CFBundleIdentifier</key><string>com.knot.ledger</string>
+  <key>CFBundleExecutable</key><string>结绳 Knot</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+</dict>
+</plist>
+PLIST
+        cat > "$APP_DIR/Contents/MacOS/结绳 Knot" <<APP
+#!/bin/sh
+exec "$ENTRY" 入口
+APP
+        chmod +x "$APP_DIR/Contents/MacOS/结绳 Knot"
+        echo "已创建入口：$APP_DIR（启动台 / 应用程序）"
+    else
+        APPS="${HOME}/.local/share/applications"
+        mkdir -p "$APPS"
+        cat > "$APPS/knot.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=结绳 Knot
+Comment=纯文本复式记账（选择浏览器界面或终端界面）
+Exec="$ENTRY" 入口
+Terminal=true
+Categories=Office;Finance;
+DESKTOP
+        chmod +x "$APPS/knot.desktop"
+        echo "已创建入口：$APPS/knot.desktop（应用菜单）"
+    fi
+}
+
+install_entry
+
 VERSION=$("$ENTRY" --version 2>/dev/null || echo "knot")
 cat > "$PREFIX/install.json" <<EOF
 {
@@ -155,7 +196,8 @@ fi
 
 echo ""
 echo "安装完成：$VERSION"
-echo "  新开终端后可直接使用："
+echo "  双击/点按应用入口「结绳 Knot」即可使用（弹选择窗口）"
+echo "  新开终端后也可直接用命令："
 echo "    knot --version"
 echo "    knot create 我的账本      # 新建账本（默认内容可直接改）"
 echo "    knot open 我的账本        # 打开终端界面（鼠标可点选 / Ctrl+单击多选）"

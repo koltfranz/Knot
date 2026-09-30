@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import io
 import json
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
-from knot.cli.main import main
+from knot.cli.commands.serve import should_open_browser
+from knot.cli.completion import generate
+from knot.cli.main import build_parser, main
 
 
 class CliTest(unittest.TestCase):
@@ -129,6 +132,68 @@ class CliTest(unittest.TestCase):
         with self.assertRaises(SystemExit) as ctx:
             self._run_capture("--version")
         self.assertEqual(ctx.exception.code, 0)
+
+
+def parse_launch_args(argv: list[str]):
+    return build_parser().parse_args(["--账本", "x.knot", *argv])
+
+
+class BrowserOpenTest(unittest.TestCase):
+    def test_forced_open(self) -> None:
+        self.assertTrue(should_open_browser(parse_launch_args(["服务", "--打开浏览器"])))
+
+    def test_suppressed(self) -> None:
+        self.assertFalse(should_open_browser(parse_launch_args(["服务", "--不打开浏览器"])))
+        self.assertFalse(
+            should_open_browser(parse_launch_args(["服务", "--打开浏览器", "--不打开浏览器"]))
+        )
+
+    def test_default_follows_tty(self) -> None:
+        args = parse_launch_args(["服务"])
+        self.assertEqual(should_open_browser(args), sys.stdin.isatty())
+
+    def test_serve_accepts_ledger_and_port(self) -> None:
+        args = parse_launch_args(["服务", "--端口", "0", "--静默", "--不打开浏览器"])
+        self.assertEqual(args.port, 0)
+        self.assertTrue(args.quiet)
+        self.assertFalse(should_open_browser(args))
+
+
+class MenuTest(unittest.TestCase):
+    def test_menu_lists_tui_and_web(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = main(["--账本", "x.knot", "菜单"])
+        output = buffer.getvalue()
+        self.assertEqual(code, 0)
+        self.assertIn("浏览器界面", output)
+        self.assertIn("终端界面", output)
+
+    def test_menu_actions_dispatch(self) -> None:
+        from knot.cli.commands.menu import MENU
+
+        actions = {label: action for _key, label, action in MENU}
+        self.assertEqual(actions["浏览器界面（本地服务）"], ["服务", "--打开浏览器"])
+        self.assertEqual(actions["终端界面（TUI）"], ["界面"])
+        self.assertEqual(actions["示例账本（复制到当前目录）"], ["示例"])
+        self.assertEqual(actions["环境自检"], ["自检"])
+
+
+class CompletionTest(unittest.TestCase):
+    def test_bash_completion(self) -> None:
+        text = generate("bash", build_parser())
+        self.assertIn("complete", text)
+        self.assertIn("create", text)
+
+    def test_powershell_completion(self) -> None:
+        text = generate("powershell", build_parser())
+        self.assertIn("Register-ArgumentCompleter", text)
+        self.assertIn("'create'", text)
+        self.assertIn("'入口'", text)
+        self.assertIn("--账本", text)
+        self.assertIn("$elements.Count -le 1", text)
+
+        self.assertEqual(text, generate("pwsh", build_parser()))
 
 
 if __name__ == "__main__":

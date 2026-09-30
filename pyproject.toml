@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "knot-ledger"
-version = "0.8.1"
+version = "0.9.0"
 description = "结绳 Knot：纯文本复式记账（CLI / TUI / Web）"
 readme = "README.md"
 requires-python = ">=3.11"

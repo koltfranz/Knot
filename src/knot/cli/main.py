@@ -20,6 +20,7 @@ from knot.cli.commands import (
     holdings,
     import_,
     init,
+    launch,
     menu,
     normalize,
     open_,
@@ -57,6 +58,7 @@ COMMANDS = (
     menu,
     demo,
     doctor,
+    launch,
 )
 
 

@@ -30,6 +30,38 @@ class InstallerFileTest(unittest.TestCase):
         self.assertIn("venv", text)
         self.assertIn("自检", text)
         self.assertIn("knot.cmd", text)
+        # 桌面 / 开始菜单入口（双击弹选择窗口）
+        self.assertIn("结绳 Knot.lnk", text)
+        self.assertIn("-m knot 入口", text)
+
+    def test_install_sh_creates_entry(self) -> None:
+        text = read("安装.sh")
+        self.assertIn("knot.desktop", text)
+        self.assertIn("结绳 Knot.app", text)
+        self.assertIn("入口", text)
+
+    def test_uninstall_scripts_remove_entries(self) -> None:
+        self.assertIn("入口", read("卸载.ps1"))
+        self.assertIn("knot.desktop", read("卸载.sh"))
+        self.assertIn("结绳 Knot.app", read("卸载.sh"))
+
+    def test_launcher_scripts_are_gone(self) -> None:
+        """0.9.0 起只保留安装/卸载脚本，界面统一由入口（knot 入口）拉起。"""
+        for name in (
+            "knot.bat",
+            "knot.sh",
+            "knot.ps1",
+            "界面.bat",
+            "界面.sh",
+            "界面.ps1",
+            "网页.bat",
+            "网页.sh",
+            "网页.ps1",
+            "演示.bat",
+            "演示.sh",
+            "演示.ps1",
+        ):
+            self.assertFalse((ROOT / name).exists(), f"启动器应已删除：{name}")
 
     def test_uninstall_ps1_contract(self) -> None:
         text = read("卸载.ps1")

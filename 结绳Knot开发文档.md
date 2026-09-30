@@ -1102,6 +1102,7 @@ class ChartSpec:
 | `open` | `打开` `开` | 打开账本 → TUI（`--网页` 走本地服务）（v0.8.0） |
 | `demo` | `示例` `示例账本` | 复制内置示例账本（`--打开` 复制后直接进 TUI）（v0.8.0） |
 | `doctor` | `自检` | 环境与账本自检（v0.8.0） |
+| `launch` | `入口` `启动` | 桌面入口：选择窗口 + 在新窗口拉起界面（v0.9.0） |
 
 ## 8.2 命令示例
 
@@ -1116,6 +1117,7 @@ knot 新建 我的账本                 # v0.8.0：命名账本（含默认内�
 knot 打开 我的账本                 # v0.8.0：直接进 TUI（--网页 走浏览器）
 knot 示例 --打开                   # v0.8.0：复制示例账本并直接进终端界面
 knot 自检                         # v0.8.0：环境与账本自检
+knot 入口                         # v0.9.0：桌面入口（选择窗口：浏览器 / 终端 / 示例）
 
 knot 查 --月 2026-09
 knot 余 --树 --深度 2
@@ -1549,7 +1551,7 @@ CMD ["python", "-m", "knot", "服务", "--host", "0.0.0.0", "--端口", "5000"]
 
 | 平台 | 脚本 | 安装位置与命令 |
 |---|---|---|
-| Windows | `安装.ps1` / `卸载.ps1` | `%LOCALAPPDATA%\Programs\Knot`（venv + `bin\knot.cmd` + `bin\knot.ps1`），用户 PATH 追加 `bin` |
+| Windows | `安装.ps1` / `卸载.ps1` | `%LOCALAPPDATA%\Programs\Knot`（venv + `bin\knot.cmd` + `bin\knot.ps1`），用户 PATH 追加 `bin`；桌面与开始菜单创建「结绳 Knot」快捷方式 |
 | macOS / Linux | `安装.sh` / `卸载.sh` | `~/.local/share/knot`（venv），`~/.local/bin/knot` 软链，`~/.profile` 标记块 |
 
 约束：
@@ -1563,6 +1565,11 @@ CMD ["python", "-m", "knot", "服务", "--host", "0.0.0.0", "--端口", "5000"]
 - `.ps1` MUST 以 UTF-8 BOM + CRLF 保存（Windows PowerShell 5.1 依赖 BOM 解码中文），
   `.gitattributes` MUST 声明 `*.ps1 text eol=crlf`
 - CI MUST 在两个平台真实执行安装 / 卸载冒烟（`-NoPath`，不污染 runner）
+- 安装 MUST 创建桌面 / 应用入口（Windows 快捷方式、macOS `~/Applications/结绳 Knot.app`、
+  Linux `~/.local/share/applications/knot.desktop`），入口 MUST 调用 `knot 入口`；
+  卸载 MUST 一并删除这些入口（路径记录在 `install.json` 的 `入口` 字段）
+- 入口 MUST 在无终端环境（桌面双击）时于新窗口拉起界面，在终端环境中就地打开；
+  选择窗口 MUST 有超时（默认 10 秒）并按默认项继续
 
 ---
 
@@ -1719,6 +1726,17 @@ CMD ["python", "-m", "knot", "服务", "--host", "0.0.0.0", "--端口", "5000"]
 | 8 | 示例账本：内置演示账本（全部语法 + 7 种图表）与 `示例` 命令、`test_demo.py` 持续校验 | 上手体验 |
 | 9 | 缺陷清理：TUI 改写定期模板（P0）、`定期` 命令（含崩溃）、`ORDER BY` 聚合表达式（P1）+ 回归测试 | 质量 |
 | 10 | 文档：用户手册（安装、命名账本、示例账本、TUI 鼠标）、语法速查、README、版本规划、变更日志 | 文档 |
+
+## 16.9 桌面入口任务分解（v0.9.0）
+
+| 序号 | 任务 | 主题 |
+|---|---|---|
+| 1 | `knot 入口`（`launch`）：三平台选择窗口（Windows PowerShell+WinForms / macOS osascript / Linux zenity·kdialog，10 秒超时默认浏览器界面） | 入口 |
+| 2 | 新窗口拉起：Windows `CREATE_NEW_CONSOLE`、macOS Terminal、Linux 终端模拟器；终端内则就地打开 | 入口 |
+| 3 | 账本主页 `~/结绳账本`（`KNOT_HOME` 可覆盖）：首次自动生成骨架，示例账本按需复制 | 入口 |
+| 4 | 安装器创建入口（Windows 快捷方式 / macOS `.app` / Linux `.desktop`），卸载清理，`install.json` 记录路径 | 分发 |
+| 5 | 删除全部一键启动脚本（`knot.*`、`界面.*`、`网页.*`、`演示.*`）并同步测试与文档 | 清理 |
+| 6 | 测试：选择窗口命令构造、超时回退、账本主页、示例复制、新窗口命令、入口命令端到端（mock 掉真实窗口） | 质量 |
 
 ---
 

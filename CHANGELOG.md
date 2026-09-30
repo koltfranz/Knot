@@ -4,24 +4,67 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [未发布]
+## [0.9.0] - 2026-09-29
+
+桌面入口：安装即用，双击一个入口进入界面；仓库里的启动脚本全部下线。
 
 ### Added
 
-- 一键体验示例账本：新增 `演示.bat` / `演示.ps1` / `演示.sh` 启动器与 `示例 --打开`，
-  复制内置示例账本（已存在则跳过）后直接进入终端界面
+- **桌面入口**：安装后桌面与开始菜单（Windows）、启动台（macOS）、应用菜单（Linux）出现
+  「结绳 Knot」入口，双击弹出选择窗口：
+  - **浏览器界面**（默认，10 秒后自动进入）：启动本地服务并打开浏览器
+  - **终端界面**：在新窗口打开三栏界面（鼠标单击选择、Ctrl+单击多选、滚轮滚动、`b` 批量菜单）
+  - **示例账本**：复制内置示例账本并打开浏览器界面
+- **账本主页** `~/结绳账本`：入口首次运行自动生成账本骨架，开箱即可记账；
+  可用 `KNOT_HOME` 或 `knot 入口 --账本目录 路径` 指定其它位置
+- 命令行等价：`knot 入口`（`launch`）；跳过选择窗口用 `--界面 浏览器|终端|示例`；
+  未安装时 Release 附件的 `python knot.pyz 入口` 同样可用
+- 安装器创建入口：Windows 快捷方式（`pythonw.exe -m knot 入口`，工作目录为用户主目录）、
+  macOS `~/Applications/结绳 Knot.app`、Linux `~/.local/share/applications/knot.desktop`；
+  入口路径写入 `install.json`，卸载时一并删除
+- 选择窗口只用系统自带工具：Windows PowerShell + WinForms、macOS osascript、
+  Linux zenity / kdialog；都没有时退回终端菜单，非交互环境直接走默认项
 - 终端界面状态栏常驻操作提示（单击选择 / Ctrl+单击多选 / 滚轮滚动 / 空格标记 / b 批量菜单）
+
+### Changed
+
+- 入口在终端里运行时就地打开界面；从桌面双击（无终端）时在新窗口拉起
+  （Windows 新控制台、macOS Terminal、Linux 终端模拟器）
+- 用户手册安装章节改为「一键安装 → 桌面入口」；README、语法速查、版本规划、开发文档同步
+
+### Removed
+
+- **删除全部一键启动脚本**：`knot.bat`、`knot.sh`、`knot.ps1`、`界面.bat/.sh/.ps1`、
+  `网页.bat/.sh/.ps1`、`演示.bat/.sh/.ps1`（共 13 个）。仓库根目录只保留
+  `安装.ps1`、`卸载.ps1`、`安装.sh`、`卸载.sh`，界面统一由入口进入
+- 删除对应的启动器测试与文档章节，改为「启动脚本已删除」的回归断言
 
 ### Fixed
 
-- Release 工作流只上传工作流制品、**没有把文件挂到 Release 上**：发布页一直是空的，
-  与文档里「Release 附件里的 `knot.pyz`」不符。现在 `zipapp` 与三平台 `nuitka` 作业都会
-  把产物 `gh release upload` 到对应 Release（Release 不存在时按 `docs/发布说明/<tag>.md` 自动创建），
-  并声明 `permissions: contents: write`、支持 `workflow_dispatch` 手动重跑；
-  上传时只取可执行文件本身（`*.dist` 中间目录不是附件，首次实跑时因此在 `gh release upload` 上报错）
-- Windows 的 Nuitka 构建会挂死 6 小时被取消：Nuitka 调用的 `depends.exe`（Dependency Walker）
-  在 CI 上不退出。现在 Windows 改用 `--windows-dependency-tool=pefile` 解析依赖
-- 已为 v0.8.0 / v0.8.1 补挂 `knot.pyz` 附件（由各自 tag 构建，`--version` 分别显示 0.8.0 / 0.8.1）
+- Release 上传附件时会把 Nuitka 的 `*.dist` 中间目录也交给 `gh release upload` 而报错，
+  现在只上传可执行文件本身
+
+### Notes
+
+- 测试 342 项（新增入口相关 20 项：选择窗口命令构造、超时回退、账本主页、示例复制、新窗口命令、入口命令端到端）
+- 未安装时的免安装入口：`python knot.pyz 入口`
+
+## [0.8.2] - 2026-09-29
+
+补丁版（从 v0.8.1 拉出维护分支发布，不含当时尚未发布的一键体验示例账本）。
+
+### Fixed
+
+- Release 工作流只上传工作流制品、**没有把文件挂到 Release 上**：发布页长期没有可下载文件。
+  现在 `zipapp` 与三平台 `nuitka` 作业都会把产物 `gh release upload` 到对应 Release
+  （Release 不存在时按 `docs/发布说明/<tag>.md` 自动创建），并声明 `permissions: contents: write`、
+  支持 `workflow_dispatch` 手动重跑
+- Windows 的 Nuitka 构建挂死 6 小时被取消（三平台可执行因此从未产出）：Nuitka 调用的
+  `depends.exe` 在 CI 上不退出，现改用 `--windows-dependency-tool=pefile`
+
+### Notes
+
+- 已为 v0.8.0 / v0.8.1 补挂由各自 tag 构建的 `knot.pyz` 附件
 
 ## [0.8.1] - 2026-09-27
 

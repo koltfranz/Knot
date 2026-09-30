@@ -107,6 +107,28 @@ $psShim = @(
 [System.IO.File]::WriteAllText((Join-Path $binDir "knot.cmd"), $cmdShim, $utf8NoBom)
 [System.IO.File]::WriteAllText((Join-Path $binDir "knot.ps1"), $psShim, $utf8Bom)
 
+# 入口：桌面 + 开始菜单快捷方式（双击弹出选择窗口）
+$windowless = Join-Path $venvDir "Scripts\pythonw.exe"
+$entryTarget = if (Test-Path -LiteralPath $windowless) { $windowless } else { $venvPython }
+$entryPaths = @(
+    (Join-Path ([Environment]::GetFolderPath("Desktop")) "结绳 Knot.lnk"),
+    (Join-Path ([Environment]::GetFolderPath("Programs")) "结绳 Knot.lnk")
+)
+$shell = New-Object -ComObject WScript.Shell
+foreach ($shortcutPath in $entryPaths) {
+    try {
+        $shortcut = $shell.CreateShortcut($shortcutPath)
+        $shortcut.TargetPath = $entryTarget
+        $shortcut.Arguments = "-m knot 入口"
+        $shortcut.WorkingDirectory = $env:USERPROFILE
+        $shortcut.Description = "结绳 Knot：纯文本复式记账（选择浏览器界面或终端界面）"
+        $shortcut.Save()
+        Write-Host "已创建入口：$shortcutPath"
+    } catch {
+        Write-Host "警告：创建入口失败（$shortcutPath）：$($_.Exception.Message)"
+    }
+}
+
 if ($NoPath) {
     Write-Host "按 -NoPath 跳过 PATH 修改；可直接调用 $binDir\knot.cmd"
 } else {
@@ -130,6 +152,7 @@ $info = [ordered]@{
     安装目录 = $InstallDir
     命令目录 = $binDir
     解释器   = $venvPython
+    入口     = $entryPaths
     安装时间 = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
 }
 [System.IO.File]::WriteAllText(
@@ -146,7 +169,8 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host ""
 Write-Host "安装完成：$versionText"
-Write-Host "  新开终端后可直接使用："
+Write-Host "  双击桌面或开始菜单的「结绳 Knot」入口即可使用（弹选择窗口）"
+Write-Host "  新开终端后也可直接用命令："
 Write-Host "    knot --version"
 Write-Host "    knot create 我的账本      # 新建账本（默认内容可直接改）"
 Write-Host "    knot open 我的账本        # 打开终端界面（鼠标可点选 / Ctrl+单击多选）"
